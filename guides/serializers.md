@@ -66,6 +66,8 @@ attribute :overdue, type: :boolean, value: &MyApp.Tasks.overdue?/1
 | `type:` | A [type spec](#type-specs). Required when the field has `value:` or the serializer has no `schema:`. It replaces the inferred type. |
 | `nullable:` | `true` or `false`. Always wins. See [Nullability](#nullability). |
 | `value:` | A function that computes the value: arity 1 (`record`) or arity 2 (`record, opts`). Anonymous functions and captures work. |
+| `optional:` | `true` leaves the key out when the value is nil. TypeScript: `key?: T`. See [Optional keys](#optional-keys). |
+| `if:` | A function (arity 1 or 2, like `value:`) that decides whether the key is sent. TypeScript: `key?: T`. |
 
 The three-argument form takes the function as the last argument. The options
 must be in brackets, because Elixir allows a keyword list only as the last
@@ -88,6 +90,8 @@ has_one :owner, serializer: MyAppWeb.UserSerializer, value: fn task -> task.proj
 | `serializer:` | Required. The serializer module for the nested value(s). |
 | `nullable:` | `has_one` only. `true` or `false`. |
 | `value:` | A function (arity 1 or 2) that returns the nested value(s) instead of `record.<name>`. |
+| `optional:` | `true` leaves the key out when the value is nil. |
+| `if:` | A function (arity 1 or 2) that decides whether the key is sent. |
 
 A `has_one` can point to an association (`belongs_to`, `has_one`) or to an
 `embeds_one`. A `has_many` can point to a `has_many`, a `many_to_many` or an
@@ -95,6 +99,29 @@ A `has_one` can point to an association (`belongs_to`, `has_one`) or to an
 
 Serializers may refer to each other in cycles (`Task` → `User` → `Task`).
 A serializer reference is not a compile-time dependency.
+
+### Optional keys
+
+Two options make a key optional (`key?:` in TypeScript):
+
+```elixir
+# Sent only when the value is not nil: `archivedNote?: string`.
+attribute :archived_note, type: :string, optional: true, value: &archived_note/1
+
+# Sent only when the condition holds: `internalRank?: number | null`.
+attribute :internal_rank, type: {:nullable, :integer}, if: fn _task, opts -> opts[:admin] end
+
+# Guard an association that is not always preloaded: `project?: Project`.
+has_one :project, serializer: MyAppWeb.ProjectSerializer, if: &Ecto.assoc_loaded?(&1.project)
+```
+
+- With `optional: true`, the value is never null in the output, so the type has no
+  `| null`. A `has_many` with `optional: true` leaves the key out for nil and sends
+  `[]` as `[]`.
+- With `if:`, the value is computed only when the condition holds. The type keeps
+  its nullability: `key?: T | null` when the value can be nil.
+- `value:` and `if:` must be written inline (an anonymous function or a capture),
+  not passed in a variable.
 
 ## Runtime
 
@@ -214,7 +241,8 @@ defp subject(%{subject: project}), do: MyAppWeb.ProjectSerializer.serialize(proj
 
 The first rule that applies wins:
 
-1. An explicit `nullable:` option, or a `{:nullable, spec}` type.
+1. An explicit `nullable:` option, or a `{:nullable, spec}` type. With
+   `optional: true` the field is never null (the key is left out instead).
 2. A field with its own `type:` (a computed attribute, or any attribute with
    `type:`) is not nullable.
 3. The primary key and the `timestamps()` fields are not nullable.

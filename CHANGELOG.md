@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Ecto.Enum` literal unions and embeds; Ecto `:any` becomes `unknown`. Keys are camelCase by default
   (`key_transform:`), dates become ISO-8601 strings and decimals strings (or numbers
   with `decimal_type: :number`). Mistakes are compile errors with a hint.
+- `optional: true` (leave the key out when the value is nil) and `if:` (send the
+  key only when a condition holds) on `attribute`, `has_one` and `has_many`. Both
+  make the TypeScript key optional (`key?:`).
 - Type specs `{:union, [...]}`, `{:intersection, [...]}` and
   `{:ts, text, [Serializer, ...]}` (raw TypeScript that imports the named serializers).
   Unions, intersections and raw TypeScript with operators get parentheses inside lists.

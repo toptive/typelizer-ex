@@ -2,6 +2,7 @@
 // Source: MyAppWeb.TaskSerializer
 
 import type { Comment } from "./Comment";
+import type { Project } from "./Project";
 import type { User } from "./User";
 
 export interface Task {
@@ -24,4 +25,8 @@ export interface Task {
   dueLabel: string | null;
   assignee: User | null;
   comments: Comment[];
+  archivedNote?: string;
+  internalRank?: number | null;
+  project?: Project;
+  watchers?: User[];
 }

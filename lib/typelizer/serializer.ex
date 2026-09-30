@@ -41,9 +41,10 @@ defmodule Typelizer.Serializer do
   alias Typelizer.{EctoSchema, Naming, TypeSpec}
   alias Typelizer.Serializer.Runtime
 
-  @attribute_opts [:type, :nullable, :value]
-  @has_one_opts [:serializer, :nullable, :value]
-  @has_many_opts [:serializer, :value]
+  @attribute_opts [:type, :nullable, :optional, :value, :if]
+  @has_one_opts [:serializer, :nullable, :optional, :value, :if]
+  @has_many_opts [:serializer, :optional, :value, :if]
+  @code_opts [:value, :if]
 
   @doc false
   defmacro __using__(opts) do
@@ -113,6 +114,9 @@ defmodule Typelizer.Serializer do
     * `:nullable` - `true` or `false`. Always wins over inference.
     * `:value` - a function of the record (arity 1) or of the record and the
       options (arity 2) that computes the value.
+    * `:optional` - `true` leaves the key out when the value is nil (`key?: T`).
+    * `:if` - a function (arity 1 or 2) that decides whether the key is sent
+      (`key?: T`).
 
   ## Examples
 
@@ -147,6 +151,7 @@ defmodule Typelizer.Serializer do
     * `:serializer` - required. The serializer of the nested value.
     * `:nullable` - `true` or `false`.
     * `:value` - a function (arity 1 or 2) that returns the nested value.
+    * `:optional`, `:if` - as for `attribute/2`.
 
   ## Examples
 
@@ -163,6 +168,7 @@ defmodule Typelizer.Serializer do
 
     * `:serializer` - required. The serializer of each nested value.
     * `:value` - a function (arity 1 or 2) that returns the nested values.
+    * `:optional`, `:if` - as for `attribute/2`.
 
   ## Examples
 
@@ -172,59 +178,46 @@ defmodule Typelizer.Serializer do
     field(:has_many, name, opts, __CALLER__)
   end
 
-  # The `value:` function is code, not data: it becomes a private function of the
-  # serializer, defined where the field is declared. The other options are data and
-  # are evaluated in the module body.
+  # The `value:` and `if:` functions are code, not data: each becomes a private
+  # function of the serializer, defined where the field is declared. The other
+  # options are data and are evaluated in the module body.
   defp field(kind, name, opts, caller) do
-    {value, opts} = pop_value(opts, caller)
+    {code, opts} = pop_code(opts, caller)
 
-    case value do
-      nil ->
-        quote do
-          Typelizer.Serializer.__field__(
-            __MODULE__,
-            unquote(kind),
-            unquote(name),
-            unquote(opts),
-            nil,
-            __ENV__
-          )
-        end
+    if code != [] and not is_atom(name) do
+      compile_error!(
+        caller,
+        "a field with value: or if: needs a literal atom name, got: #{Macro.to_string(name)}"
+      )
+    end
 
-      value ->
-        unless is_atom(name) do
-          compile_error!(
-            caller,
-            "a field with value: needs a literal atom name, got: #{Macro.to_string(name)}"
-          )
-        end
+    funs = for {key, _ast} <- code, do: {key, :"__typelizer_#{key}_#{name}__"}
+    definitions = for {key, ast} <- code, do: value_function(funs[key], ast)
 
-        fun_name = :"__typelizer_value_#{name}__"
+    quote do
+      unquote_splicing(definitions)
 
-        quote do
-          unquote(value_function(fun_name, value))
-
-          Typelizer.Serializer.__field__(
-            __MODULE__,
-            unquote(kind),
-            unquote(name),
-            unquote(opts),
-            unquote(fun_name),
-            __ENV__
-          )
-        end
+      Typelizer.Serializer.__field__(
+        __MODULE__,
+        unquote(kind),
+        unquote(name),
+        unquote(opts),
+        unquote(funs),
+        __ENV__
+      )
     end
   end
 
-  defp pop_value(opts, caller) when is_list(opts) do
+  defp pop_code(opts, caller) when is_list(opts) do
     if Keyword.keyword?(opts) do
-      Keyword.pop(opts, :value)
+      {code, opts} = Keyword.split(opts, @code_opts)
+      {Enum.reject(code, fn {_key, ast} -> is_nil(ast) end), opts}
     else
       compile_error!(caller, "expected a keyword list of options, got: #{Macro.to_string(opts)}")
     end
   end
 
-  defp pop_value(opts, _caller), do: {nil, opts}
+  defp pop_code(opts, _caller), do: {[], opts}
 
   defp value_function(fun_name, value) do
     record = Macro.var(:record, __MODULE__)
@@ -273,7 +266,7 @@ defmodule Typelizer.Serializer do
   end
 
   @doc false
-  def __field__(module, kind, name, opts, fun_name, env) do
+  def __field__(module, kind, name, opts, funs, env) do
     config = Module.get_attribute(module, :typelizer_config)
     fields = Module.get_attribute(module, :typelizer_fields)
 
@@ -286,11 +279,11 @@ defmodule Typelizer.Serializer do
     end
 
     opts = check_opts!(env, kind, name, opts)
-    source = if fun_name, do: {:fun, fun_name}, else: {:field, name}
+    source = if funs[:value], do: {:fun, funs[:value]}, else: {:field, name}
 
     field =
       try do
-        build_field(kind, name, opts, source, config)
+        kind |> build_field(name, opts, source, config) |> presence(opts, funs[:if])
       rescue
         error in ArgumentError -> compile_error!(env, "#{inspect(name)}: " <> error.message)
       end
@@ -315,22 +308,33 @@ defmodule Typelizer.Serializer do
 
     check_known_opts!(env, kind, name, opts, allowed)
 
-    case Keyword.fetch(opts, :nullable) do
-      {:ok, value} when not is_boolean(value) ->
-        compile_error!(env, "#{inspect(name)}: nullable: must be true or false")
-
-      _ ->
-        opts
+    for key <- [:nullable, :optional],
+        Keyword.has_key?(opts, key) and not is_boolean(opts[key]) do
+      compile_error!(env, "#{inspect(name)}: #{key}: must be true or false")
     end
+
+    opts
   end
 
+  # `value:` and `if:` are taken out of the options at macro time. When they are
+  # still here, they were not written inline (for example, a variable).
   defp check_known_opts!(env, kind, name, opts, allowed) do
-    case Keyword.keys(opts) -- allowed do
+    keys = Keyword.keys(opts)
+
+    case Enum.filter(keys, &(&1 in @code_opts)) do
+      [code | _] ->
+        compile_error!(
+          env,
+          "#{inspect(name)}: #{code}: must be written inline in the #{kind} call"
+        )
+
       [] ->
         :ok
+    end
 
-      [:value | _] ->
-        compile_error!(env, "#{inspect(name)}: value: must be written inline in the #{kind} call")
+    case keys -- allowed do
+      [] ->
+        :ok
 
       unknown ->
         compile_error!(
@@ -453,6 +457,23 @@ defmodule Typelizer.Serializer do
     end
   end
 
+  # `optional: true` leaves the key out when the value is nil, so the value is never
+  # null: `key?: T`. `if:` leaves the key out when the condition is false: `key?: T`,
+  # or `key?: T | null` when the value can be nil.
+  defp presence(field, opts, condition) do
+    omit_nil = Keyword.get(opts, :optional, false)
+
+    field
+    |> Map.merge(%{
+      optional: omit_nil or condition != nil,
+      omit_nil: omit_nil,
+      condition: condition
+    })
+    |> then(fn field ->
+      if omit_nil, do: %{field | nullable: false, spec: unwrap_nullable(field.spec)}, else: field
+    end)
+  end
+
   defp unwrap_nullable({:nullable, spec}), do: spec
   defp unwrap_nullable(spec), do: spec
 
@@ -462,8 +483,10 @@ defmodule Typelizer.Serializer do
     fields = env.module |> Module.get_attribute(:typelizer_fields) |> Enum.reverse()
     record = Macro.var(:record, __MODULE__)
     opts = Macro.var(:opts, __MODULE__)
-    pairs = Enum.map(fields, &{&1.key, value_ast(&1, record, opts)})
-    public_fields = Enum.map(fields, &Map.drop(&1, [:source]))
+    {always, sometimes} = Enum.split_with(fields, &(not &1.optional))
+    pairs = Enum.map(always, &{&1.key, value_ast(&1, raw_ast(&1, record, opts), opts)})
+    body = Enum.reduce(sometimes, {:%{}, [], pairs}, &put_ast(&1, &2, record, opts))
+    public_fields = Enum.map(fields, &Map.drop(&1, [:source, :condition, :omit_nil]))
 
     quote do
       @doc false
@@ -480,7 +503,7 @@ defmodule Typelizer.Serializer do
       def serialize(nil, _opts), do: nil
 
       def serialize(unquote(record), unquote(opts)) when is_list(unquote(opts)) do
-        %{unquote_splicing(pairs)}
+        unquote(body)
       end
 
       @doc """
@@ -493,9 +516,47 @@ defmodule Typelizer.Serializer do
     end
   end
 
-  defp value_ast(%{kind: :attribute} = field, record, opts) do
-    raw = raw_ast(field, record, opts)
+  # Adds an optional field to the map built so far. The value is computed only when
+  # the `if:` condition holds, so the condition can guard an unloaded association.
+  defp put_ast(field, map, record, opts) do
+    raw = Macro.var(:raw, __MODULE__)
+    put = quote do: Map.put(map, unquote(field.key), unquote(value_ast(field, raw, opts)))
 
+    put =
+      if field.omit_nil do
+        quote do
+          case unquote(raw) do
+            nil -> map
+            unquote(raw) -> unquote(put)
+          end
+        end
+      else
+        put
+      end
+
+    put =
+      quote do:
+              (
+                unquote(raw) = unquote(raw_ast(field, record, opts))
+                unquote(put)
+              )
+
+    put =
+      if field.condition do
+        quote do
+          if unquote(field.condition)(unquote(record), unquote(opts)), do: unquote(put), else: map
+        end
+      else
+        put
+      end
+
+    quote do
+      map = unquote(map)
+      unquote(put)
+    end
+  end
+
+  defp value_ast(%{kind: :attribute} = field, raw, opts) do
     if TypeSpec.passthrough?(field.spec) do
       raw
     else
@@ -505,12 +566,12 @@ defmodule Typelizer.Serializer do
     end
   end
 
-  defp value_ast(%{kind: kind} = field, record, opts) do
+  defp value_ast(%{kind: kind} = field, raw, opts) do
     helper = if kind == :has_one, do: :one, else: :many
 
     quote do
       Runtime.unquote(helper)(
-        unquote(raw_ast(field, record, opts)),
+        unquote(raw),
         unquote(field.serializer),
         unquote(opts),
         __MODULE__,

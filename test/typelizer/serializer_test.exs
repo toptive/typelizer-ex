@@ -62,6 +62,32 @@ defmodule Typelizer.SerializerTest do
              }
     end
 
+    test "optional: leaves the key out when the value is nil" do
+      refute Map.has_key?(TaskSerializer.serialize(task()), "archivedNote")
+      refute Map.has_key?(TaskSerializer.serialize(task()), "watchers")
+
+      serialized =
+        TaskSerializer.serialize(
+          task(metadata: %{"archived_note" => "old", "watchers" => [@user]})
+        )
+
+      assert %{"archivedNote" => "old", "watchers" => [%{"id" => "u1"}]} = serialized
+      assert %{"watchers" => []} = TaskSerializer.serialize(task(metadata: %{"watchers" => []}))
+    end
+
+    test "if: adds the key only when the condition holds" do
+      refute Map.has_key?(TaskSerializer.serialize(task()), "internalRank")
+      assert %{"internalRank" => 3} = TaskSerializer.serialize(task(), admin: true)
+      assert %{"internalRank" => nil} = TaskSerializer.serialize(task(position: nil), admin: true)
+    end
+
+    test "if: can guard an association that is not loaded" do
+      refute Map.has_key?(TaskSerializer.serialize(task()), "project")
+
+      project = %Project{id: "p1", name: "Launch", links: [], tasks: []}
+      assert %{"project" => %{"id" => "p1"}} = TaskSerializer.serialize(task(project: project))
+    end
+
     test "passes the options to arity-2 functions and nested serializers" do
       refute TaskSerializer.serialize(task(), user_id: "someone else")["canEdit"]
       refute TaskSerializer.serialize(task())["canEdit"]
@@ -222,8 +248,18 @@ defmodule Typelizer.SerializerTest do
       assert %{nullable: {:column, nil, "tasks", "assignee_id"}} =
                Enum.find(fields, &(&1.name == :assignee))
 
-      assert %{nullable: false, spec: {:list, {:serializer, MyAppWeb.CommentSerializer}}} =
-               List.last(fields)
+      assert %{
+               nullable: false,
+               optional: false,
+               spec: {:list, {:serializer, MyAppWeb.CommentSerializer}}
+             } =
+               Enum.find(fields, &(&1.name == :comments))
+
+      assert %{optional: true, nullable: false, spec: :string} =
+               Enum.find(fields, &(&1.name == :archived_note))
+
+      assert %{optional: true, spec: {:nullable, :number}} =
+               Enum.find(fields, &(&1.name == :internal_rank))
     end
   end
 
@@ -271,6 +307,11 @@ defmodule Typelizer.SerializerTest do
     test "a computed attribute without type:" do
       assert compile_error("attribute :x, value: fn t -> t end") =~
                "a computed attribute must declare its TypeScript type"
+    end
+
+    test "value: or if: that is not written inline" do
+      assert compile_error("opts = [if: & &1]\nattribute :title, opts") =~
+               "if: must be written inline in the attribute call"
     end
 
     test "an attribute without schema and without type:" do
@@ -343,9 +384,11 @@ defmodule Typelizer.SerializerTest do
                "unknown option(s) [:nullable]"
     end
 
-    test "a non-boolean nullable:" do
+    test "a non-boolean nullable: or optional:" do
       assert compile_error("attribute :title, nullable: :yes") =~
                "nullable: must be true or false"
+
+      assert compile_error("attribute :title, optional: 1") =~ "optional: must be true or false"
     end
 
     test "a schema that is not an Ecto schema" do

@@ -78,7 +78,7 @@ defmodule Typelizer.Generator.Serializers do
     props =
       Enum.map(fields, fn field ->
         spec = if nullable?.(field.nullable), do: TypeSpec.nullable(field.spec), else: field.spec
-        {field.key, spec, false}
+        {field.key, spec, field.optional}
       end)
 
     imports =

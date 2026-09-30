@@ -33,6 +33,19 @@ defmodule MyAppWeb.TaskSerializer do
 
   has_one :assignee, serializer: MyAppWeb.UserSerializer
   has_many :comments, serializer: MyAppWeb.CommentSerializer
+  attribute :archived_note, type: :string, optional: true, value: & &1.metadata["archived_note"]
+
+  attribute :internal_rank,
+    type: {:nullable, :integer},
+    if: fn _task, opts -> opts[:admin] end,
+    value: & &1.position
+
+  has_one :project, serializer: MyAppWeb.ProjectSerializer, if: &Ecto.assoc_loaded?(&1.project)
+
+  has_many :watchers,
+    serializer: MyAppWeb.UserSerializer,
+    optional: true,
+    value: & &1.metadata["watchers"]
 end
 
 defmodule MyAppWeb.ProjectSerializer do
