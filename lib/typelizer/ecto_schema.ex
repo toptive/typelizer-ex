@@ -110,12 +110,7 @@ defmodule Typelizer.EctoSchema do
     {:ok, {:enum, Enum.map(mappings, fn {value, _dumped} -> Atom.to_string(value) end)}}
   end
 
-  defp parameterized(Ecto.Embedded, %{cardinality: cardinality, related: related}, ctx) do
-    with {:ok, props} <- embed_props(related, ctx) do
-      object = {:object, props}
-      {:ok, if(cardinality == :many, do: {:list, object}, else: object)}
-    end
-  end
+  defp parameterized(Ecto.Embedded, embedded, ctx), do: embed_spec(embedded, [], ctx)
 
   defp parameterized(module, params, ctx) do
     if Code.ensure_loaded?(module) and function_exported?(module, :type, 1) do
@@ -131,24 +126,92 @@ defmodule Typelizer.EctoSchema do
 
   # Every field of an embedded schema, in declaration order. Only the primary key is
   # not nullable: embeds have no database column to read.
-  defp embed_props(related, ctx) do
-    embed_props(related, related.__schema__(:fields), ctx, [])
+  @doc """
+  The spec of an embed field whose listed fields are never null. `required` is
+  `:all` or a list of field names; a nested embed takes `name: required`.
+  """
+  @spec embed(module(), atom(), term(), TypeSpec.ctx()) ::
+          {:ok, TypeSpec.t()} | {:error, String.t()}
+  def embed(schema, field, required, ctx) do
+    case schema.__schema__(:embed, field) do
+      nil ->
+        {:error,
+         "required: works only on an embed, and #{inspect(field)} is not an embed of #{inspect(schema)}"}
+
+      embedded ->
+        embed_spec(embedded, required, ctx)
+    end
   end
 
-  defp embed_props(_related, [], _ctx, acc), do: {:ok, Enum.reverse(acc)}
+  defp embed_spec(%{cardinality: cardinality, related: related}, required, ctx) do
+    with :ok <- check_required(related, required),
+         {:ok, props} <- embed_props(related, related.__schema__(:fields), required, ctx, []) do
+      object = {:object, props}
+      {:ok, if(cardinality == :many, do: {:list, object}, else: object)}
+    end
+  end
 
-  defp embed_props(related, [field | rest], ctx, acc) do
-    case infer(related.__schema__(:type, field), ctx) do
+  defp check_required(_related, :all), do: :ok
+
+  defp check_required(related, required) when is_list(required) do
+    fields = related.__schema__(:fields)
+
+    Enum.reduce_while(required, :ok, fn entry, :ok ->
+      {name, nested} = if is_atom(entry), do: {entry, nil}, else: entry
+
+      cond do
+        name not in fields ->
+          {:halt,
+           {:error,
+            "required: #{inspect(related)} has no field #{inspect(name)}. " <>
+              "Its fields: #{inspect(fields)}"}}
+
+        nested != nil and related.__schema__(:embed, name) == nil ->
+          {:halt, {:error, "required: #{inspect(name)} of #{inspect(related)} is not an embed"}}
+
+        true ->
+          {:cont, :ok}
+      end
+    end)
+  end
+
+  defp check_required(_related, other) do
+    {:error, "required: takes :all or a list of field names, got: #{inspect(other)}"}
+  end
+
+  # Every field of an embedded schema, in declaration order. Embeds have no database
+  # column to read, so only the primary key and the `required` fields are not null.
+  defp embed_props(_related, [], _required, _ctx, acc), do: {:ok, Enum.reverse(acc)}
+
+  defp embed_props(related, [field | rest], required, ctx, acc) do
+    case field_spec(related, field, required, ctx) do
       {:ok, spec} ->
-        primary_key? = field in related.__schema__(:primary_key)
-        spec = if primary_key?, do: spec, else: TypeSpec.nullable(spec)
+        not_null? = field in related.__schema__(:primary_key) or required?(required, field)
+        spec = if not_null?, do: spec, else: TypeSpec.nullable(spec)
         prop = {field, Naming.key(field, ctx.key_transform), spec, false}
-        embed_props(related, rest, ctx, [prop | acc])
+        embed_props(related, rest, required, ctx, [prop | acc])
 
       {:error, message} ->
         {:error, embed_error(related, field, message)}
     end
   end
+
+  defp field_spec(related, field, required, ctx) do
+    case nested_required(required, field) do
+      nil -> infer(related.__schema__(:type, field), ctx)
+      nested -> embed_spec(related.__schema__(:embed, field), nested, ctx)
+    end
+  end
+
+  defp required?(:all, _field), do: true
+
+  defp required?(required, field),
+    do: field in required or Keyword.has_key?(nested_only(required), field)
+
+  defp nested_required(:all, _field), do: nil
+  defp nested_required(required, field), do: Keyword.get(nested_only(required), field)
+
+  defp nested_only(required), do: Enum.filter(required, &is_tuple/1)
 
   defp embed_error(related, field, message) do
     "#{message} (field #{inspect(field)} of the embedded schema #{inspect(related)}). " <>

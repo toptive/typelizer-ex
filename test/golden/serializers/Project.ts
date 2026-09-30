@@ -16,5 +16,18 @@ export interface Project {
     url: string | null;
     label: string | null;
   }[];
+  address: {
+    street: string;
+    line2: string | null;
+    city: string;
+    geo: {
+      lat: number;
+      lng: number;
+    };
+  } | null;
+  price: {
+    amount: number;
+    currency: string;
+  };
   tasks: Task[];
 }

@@ -21,25 +21,25 @@ defmodule Typelizer.RoutesTest do
     defmodule ConflictRouter do
       use Phoenix.Router
 
-      get("/a", MyAppWeb.PageController, :show)
-      get("/b", MyAppWeb.PageController, :show)
+      get "/a", MyAppWeb.PageController, :show
+      get "/b", MyAppWeb.PageController, :show
     end
 
     defmodule SnakeRouter do
       use Phoenix.Router
 
-      get("/users/:user_id/posts/:post_id", MyAppWeb.PageController, :show, as: :user_post)
-      get("/", MyAppWeb.PageController, :home, as: nil)
-      put("/items/:id", MyAppWeb.PageController, :update, as: :item)
-      post("/items/:id", MyAppWeb.PageController, :update, as: :item_update)
-      get("/api/internal/x", MyAppWeb.PageController, :x, as: :internal)
-      get("/apiary", MyAppWeb.PageController, :apiary)
+      get "/users/:user_id/posts/:post_id", MyAppWeb.PageController, :show, as: :user_post
+      get "/", MyAppWeb.PageController, :home, as: nil
+      put "/items/:id", MyAppWeb.PageController, :update, as: :item
+      post "/items/:id", MyAppWeb.PageController, :update, as: :item_update
+      get "/api/internal/x", MyAppWeb.PageController, :x, as: :internal
+      get "/apiary", MyAppWeb.PageController, :apiary
     end
 
     defmodule ReservedRouter do
       use Phoenix.Router
 
-      get("/x", MyAppWeb.PageController, :x, as: :new)
+      get "/x", MyAppWeb.PageController, :x, as: :new
     end
 
     test "two routes with the same group and action" do

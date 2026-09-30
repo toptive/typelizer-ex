@@ -41,7 +41,7 @@ defmodule Typelizer.Serializer do
   alias Typelizer.{EctoSchema, Naming, TypeSpec}
   alias Typelizer.Serializer.Runtime
 
-  @attribute_opts [:type, :nullable, :optional, :value, :if]
+  @attribute_opts [:type, :nullable, :optional, :required, :value, :if]
   @has_one_opts [:serializer, :nullable, :optional, :value, :if]
   @has_many_opts [:serializer, :optional, :value, :if]
   @code_opts [:value, :if]
@@ -115,6 +115,8 @@ defmodule Typelizer.Serializer do
     * `:value` - a function of the record (arity 1) or of the record and the
       options (arity 2) that computes the value.
     * `:optional` - `true` leaves the key out when the value is nil (`key?: T`).
+    * `:required` - for an embed: the embed fields that are never null
+      (`[:street, geo: [:lat]]`), or `:all`.
     * `:if` - a function (arity 1 or 2) that decides whether the key is sent
       (`key?: T`).
 
@@ -389,6 +391,11 @@ defmodule Typelizer.Serializer do
   defp attribute_type(name, opts, source, config) do
     case Keyword.fetch(opts, :type) do
       {:ok, type} ->
+        if Keyword.has_key?(opts, :required) do
+          raise ArgumentError,
+                "required: works on an inferred embed type. Remove type: or required:"
+        end
+
         spec = TypeSpec.normalize!(type, config.ctx)
         if config.schema && source == {:field, name}, do: schema_describe!(config, name)
         {spec, match?({:nullable, _}, spec)}
@@ -405,7 +412,21 @@ defmodule Typelizer.Serializer do
                 "add type: (for example type: :string) or set schema: in use Typelizer.Serializer"
         end
 
-        schema_describe!(config, name)
+        {spec, nullability} = schema_describe!(config, name)
+        {embed_required(spec, name, opts, config), nullability}
+    end
+  end
+
+  defp embed_required(spec, name, opts, config) do
+    case Keyword.fetch(opts, :required) do
+      :error ->
+        spec
+
+      {:ok, required} ->
+        case EctoSchema.embed(config.schema, name, required, config.ctx) do
+          {:ok, spec} -> spec
+          {:error, message} -> raise ArgumentError, message
+        end
     end
   end
 

@@ -53,6 +53,8 @@ defmodule MyAppWeb.ProjectSerializer do
   use Typelizer.Serializer, schema: MyApp.Projects.Project
 
   attributes [:id, :name, :budget, :settings, :links]
+  attribute :address, required: [:street, :city, geo: [:lat, :lng]]
+  attribute :price, required: :all
   has_many :tasks, serializer: MyAppWeb.TaskSerializer
 end
 

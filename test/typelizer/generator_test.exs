@@ -96,7 +96,7 @@ defmodule Typelizer.GeneratorTest do
   describe "router" do
     defmodule OtherRouter do
       use Phoenix.Router
-      get("/users/:user_id/posts/:post_id", MyAppWeb.PageController, :show, as: :user_post)
+      get "/users/:user_id/posts/:post_id", MyAppWeb.PageController, :show, as: :user_post
     end
 
     test "router discovery" do

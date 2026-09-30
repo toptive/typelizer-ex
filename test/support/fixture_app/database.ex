@@ -22,6 +22,8 @@ defmodule MyApp.Database do
       budget numeric,
       settings jsonb,
       links jsonb NOT NULL DEFAULT '[]',
+      address jsonb,
+      price jsonb NOT NULL,
       inserted_at timestamp(0) NOT NULL,
       updated_at timestamp(0) NOT NULL
     )
@@ -60,14 +62,14 @@ defmodule MyApp.Database do
 
   @nullable %{
     "users" => ~w(),
-    "projects" => ~w(budget settings),
+    "projects" => ~w(budget settings address),
     "tasks" => ~w(title priority due_on estimate done_at scores assignee_id),
     "comments" => ~w()
   }
 
   @columns %{
     "users" => ~w(id name email role inserted_at updated_at),
-    "projects" => ~w(id name budget settings links inserted_at updated_at),
+    "projects" => ~w(id name budget settings links address price inserted_at updated_at),
     "tasks" =>
       ~w(id title status priority labels due_on estimate position done_at metadata scores tags
          assignee_id project_id inserted_at updated_at),

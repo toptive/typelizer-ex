@@ -124,6 +124,12 @@ defmodule Typelizer.SerializerTest do
         budget: Decimal.new("1000"),
         settings: %Settings{theme: :dark, notify_on_done: true},
         links: [%Link{id: "l1", url: "https://example.com", label: nil}],
+        address: %MyApp.Projects.Address{
+          street: "Main St 1",
+          city: "Springfield",
+          geo: %MyApp.Projects.Geo{lat: 1.5, lng: 2.5}
+        },
+        price: %MyApp.Projects.Money{amount: 1200, currency: "EUR"},
         tasks: []
       }
 
@@ -133,6 +139,13 @@ defmodule Typelizer.SerializerTest do
                "budget" => "1000",
                "settings" => %{"theme" => "dark", "notifyOnDone" => true},
                "links" => [%{"id" => "l1", "url" => "https://example.com", "label" => nil}],
+               "address" => %{
+                 "street" => "Main St 1",
+                 "line2" => nil,
+                 "city" => "Springfield",
+                 "geo" => %{"lat" => 1.5, "lng" => 2.5}
+               },
+               "price" => %{"amount" => 1200, "currency" => "EUR"},
                "tasks" => []
              }
 
@@ -384,6 +397,28 @@ defmodule Typelizer.SerializerTest do
                "unknown option(s) [:nullable]"
     end
 
+    test "invalid required:" do
+      project = "schema: MyApp.Projects.Project"
+
+      assert compile_error("attribute :name, required: [:x]", project) =~
+               "required: works only on an embed, and :name is not an embed"
+
+      assert compile_error("attribute :address, required: [:zip]", project) =~
+               "required: MyApp.Projects.Address has no field :zip. Its fields: [:street, :line2, :city, :geo]"
+
+      assert compile_error("attribute :address, required: [street: [:x]]", project) =~
+               "required: :street of MyApp.Projects.Address is not an embed"
+
+      assert compile_error("attribute :address, required: [geo: [:alt]]", project) =~
+               "MyApp.Projects.Geo has no field :alt"
+
+      assert compile_error("attribute :address, required: true", project) =~
+               "required: takes :all or a list of field names"
+
+      assert compile_error("attribute :address, type: :map, required: [:street]", project) =~
+               "Remove type: or required:"
+    end
+
     test "a non-boolean nullable: or optional:" do
       assert compile_error("attribute :title, nullable: :yes") =~
                "nullable: must be true or false"
@@ -416,7 +451,7 @@ defmodule Typelizer.SerializerTest do
         use Ecto.Schema
 
         embedded_schema do
-          embeds_one(:coordinates, Coordinates)
+          embeds_one :coordinates, Coordinates
         end
       end
 
@@ -450,8 +485,8 @@ defmodule Typelizer.SerializerTest do
       use Ecto.Schema
 
       embedded_schema do
-        field(:payload, :any, virtual: true)
-        field(:data, {:map, :any})
+        field :payload, :any, virtual: true
+        field :data, {:map, :any}
       end
     end
 
@@ -479,8 +514,8 @@ defmodule Typelizer.SerializerTest do
       use Ecto.Schema
 
       embedded_schema do
-        field(:total, Cents)
-        field(:uuid, Ecto.UUID)
+        field :total, Cents
+        field :uuid, Ecto.UUID
       end
     end
 

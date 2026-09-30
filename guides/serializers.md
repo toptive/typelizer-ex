@@ -67,6 +67,7 @@ attribute :overdue, type: :boolean, value: &MyApp.Tasks.overdue?/1
 | `nullable:` | `true` or `false`. Always wins. See [Nullability](#nullability). |
 | `value:` | A function that computes the value: arity 1 (`record`) or arity 2 (`record, opts`). Anonymous functions and captures work. |
 | `optional:` | `true` leaves the key out when the value is nil. TypeScript: `key?: T`. See [Optional keys](#optional-keys). |
+| `required:` | For an embed: the fields that are never null, or `:all`. See [Nullability](#nullability). |
 | `if:` | A function (arity 1 or 2, like `value:`) that decides whether the key is sent. TypeScript: `key?: T`. |
 
 The three-argument form takes the function as the last argument. The options
@@ -254,9 +255,22 @@ The first rule that applies wins:
    The database must be reachable, or the task fails.
 5. Otherwise the field is nullable.
 
-Fields inside an inline embed (from `attributes`) follow rules 3 and 5. For full
-control over an embed, write a serializer for the embedded schema and use
-`has_one` or `has_many`.
+Fields inside an inline embed have no database column: only the primary key is
+not nullable, and every other field is nullable. List the fields that are never
+null with `required:`. A nested embed takes its own list:
+
+```elixir
+# address: { street: string; line2: string | null; city: string; geo: { lat: number; lng: number } } | null
+attribute :address, required: [:street, :city, geo: [:lat, :lng]]
+
+# price: { amount: number; currency: string }
+attribute :price, required: :all
+```
+
+`required:` changes the fields inside the embed. The embed itself follows the
+rules above (here, its database column). `:all` covers the direct fields; a
+nested embed keeps its own defaults unless you list it. For full control, write
+a serializer for the embedded schema and use `has_one` or `has_many`.
 
 ## Names
 
