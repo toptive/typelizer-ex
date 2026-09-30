@@ -28,6 +28,17 @@ const results: Record<string, unknown> = {
   index: routes.task.index().url,
   query: routes.task.index({ query: { page: 2, tags: ["a", "b"], filter: { status: "todo" }, skip: null } }).url,
   anchor: routes.task.show(42, { anchor: "notes" }).url,
+  anchorEncoded: routes.task.show(42, { anchor: "a b#c" }).url,
+  queryPlug: routes.task.index({
+    query: {
+      due: new Date(Date.UTC(2026, 8, 30, 10, 0, 0)),
+      sort: [{ field: "price", dir: "asc" }, { field: "name" }],
+      filter: { status: ["todo", "done"], owner: { id: 7 }, since: new Date(Date.UTC(2026, 0, 1)) },
+      "a&b": "c=d",
+      flag: true,
+      skip: undefined,
+    },
+  }).url,
   nested: routes.taskComment.create({ taskId: 7 }).url,
   snakeParam: routes.taskComment.index({ task_id: 7 } as unknown as { taskId: number }).url,
   twoParams: routes.apiV1Member.show({ projectId: 1, memberId: 2 }).url,

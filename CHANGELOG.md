@@ -19,8 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `{:ts, text, [Serializer, ...]}` (raw TypeScript that imports the named serializers).
   Unions, intersections and raw TypeScript with operators get parentheses inside lists.
 - Route helper generation from the Phoenix router: one typed helper per route
-  (`routes.task.show(id)` → `{ url, method }`), typed path params, query strings,
-  anchors, `setRoutesBaseUrl()` and path filters.
+  (`routes.task.show(id)` → `{ url, method }`), typed path params, query strings in
+  the Plug format (nested objects, arrays of objects, dates), encoded anchors, `setRoutesBaseUrl()` and path filters.
 - The generated TypeScript passes `tsc --strict --noUncheckedIndexedAccess
   --exactOptionalPropertyTypes --verbatimModuleSyntax`; a test checks it on every run.
 - `Typelizer.InertiaPage`: `page/2` declares the props of an Inertia page and

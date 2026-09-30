@@ -42,7 +42,7 @@ export function buildUrl(
     routesBaseUrl +
     path +
     (query ? `?${query}` : "") +
-    (options?.anchor ? `#${options.anchor}` : "")
+    (options?.anchor ? `#${encodeURIComponent(options.anchor)}` : "")
   );
 }
 
@@ -79,29 +79,35 @@ function encodeParam(glob: boolean, value: unknown): string {
   return parts.map((part) => encodeURIComponent(String(part))).join("/");
 }
 
-// Plug conventions: arrays become key[]=v, nested objects become key[sub]=v.
-function encodeQuery(query: Record<string, unknown>, prefix?: string): string {
+// Plug conventions: arrays of scalars become key[]=v, objects become key[sub]=v,
+// arrays of objects become key[0][sub]=v (as Phoenix forms send them), dates
+// become ISO-8601 strings, and null or undefined values are left out.
+function encodeQuery(query: Record<string, unknown>): string {
   const parts: string[] = [];
-
-  for (const [rawKey, value] of Object.entries(query)) {
-    const key = prefix
-      ? `${prefix}[${encodeURIComponent(rawKey)}]`
-      : encodeURIComponent(rawKey);
-
-    if (value === undefined || value === null) continue;
-
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (item === undefined || item === null) continue;
-        parts.push(`${key}[]=${encodeURIComponent(String(item))}`);
-      }
-    } else if (typeof value === "object") {
-      const nested = encodeQuery(value as Record<string, unknown>, key);
-      if (nested) parts.push(nested);
-    } else {
-      parts.push(`${key}=${encodeURIComponent(String(value))}`);
-    }
+  for (const [key, value] of Object.entries(query)) {
+    appendQuery(parts, encodeURIComponent(key), value);
   }
-
   return parts.join("&");
+}
+
+function appendQuery(parts: string[], key: string, value: unknown): void {
+  if (value === undefined || value === null) return;
+
+  if (value instanceof Date) {
+    parts.push(`${key}=${encodeURIComponent(value.toISOString())}`);
+  } else if (Array.isArray(value)) {
+    const indexed = value.some(
+      (item) =>
+        typeof item === "object" && item !== null && !(item instanceof Date),
+    );
+    value.forEach((item, index) =>
+      appendQuery(parts, indexed ? `${key}[${index}]` : `${key}[]`, item),
+    );
+  } else if (typeof value === "object") {
+    for (const [name, item] of Object.entries(value)) {
+      appendQuery(parts, `${key}[${encodeURIComponent(name)}]`, item);
+    }
+  } else {
+    parts.push(`${key}=${encodeURIComponent(String(value))}`);
+  }
 }

@@ -32,12 +32,33 @@ defmodule Typelizer.TypeScriptTest do
 
     {json, 0} = System.cmd("node", ["js/check.js"], cd: tmp_dir)
 
-    assert Jason.decode!(json) == %{
+    results = Jason.decode!(json)
+    {query_plug, results} = Map.pop!(results, "queryPlug")
+    ["/tasks", query] = String.split(query_plug, "?")
+
+    # What Phoenix receives: Plug decodes the query string.
+    assert Plug.Conn.Query.decode(query) == %{
+             "due" => "2026-09-30T10:00:00.000Z",
+             "sort" => %{
+               "0" => %{"field" => "price", "dir" => "asc"},
+               "1" => %{"field" => "name"}
+             },
+             "filter" => %{
+               "status" => ["todo", "done"],
+               "owner" => %{"id" => "7"},
+               "since" => "2026-01-01T00:00:00.000Z"
+             },
+             "a&b" => "c=d",
+             "flag" => "true"
+           }
+
+    assert results == %{
              "show" => %{"url" => "/tasks/42", "method" => "get"},
              "showObject" => "/tasks/a%20b",
              "index" => "/tasks",
              "query" => "/tasks?page=2&tags[]=a&tags[]=b&filter[status]=todo",
              "anchor" => "/tasks/42#notes",
+             "anchorEncoded" => "/tasks/42#a%20b%23c",
              "nested" => "/tasks/7/comments",
              "snakeParam" => "/tasks/7/comments",
              "twoParams" => "/api/v1/projects/1/members/2",

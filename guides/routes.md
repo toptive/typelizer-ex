@@ -82,8 +82,10 @@ Set `router: false` to skip route helpers.
 - The last argument is optional: `{ query?: Record<string, unknown>; anchor?: string }`.
   A route without path params takes only this argument.
 - **Query strings** follow the Plug conventions: arrays become `key[]=v`,
-  nested objects become `key[sub]=v`, and `null` or `undefined` values are
-  skipped.
+  nested objects become `key[sub]=v`, and arrays of objects become
+  `sort[0][field]=price&sort[1][field]=name` (the indexed map that Phoenix forms
+  send, which `cast_assoc` accepts). `Date` values become ISO-8601 strings, and
+  `null` or `undefined` values are skipped. The anchor is URL-encoded.
 
 ## Filters
 
