@@ -167,6 +167,8 @@ export const task = {
 - Only types are generated. Cast and validate `params` in the controller as usual.
 - An action without a declaration keeps `RouteOptions` (any query).
 - A LiveView can declare the query params of its live actions the same way.
+- The action may have any arity (a controller that overrides `action/2` to pass
+  the current user defines `index/3`).
 - Errors: an invalid spec, a declaration twice or an action that the controller
   does not define is a `CompileError`. A declaration for an action that no route
   of the router points to fails `mix typelizer.gen`.
@@ -211,6 +213,8 @@ addUrlDefault("organizationId", 7);
   `typelizer: missing route param "locale" for /:locale/articles/:slug`.
 - `setUrlDefaults()` and `addUrlDefault()` work for any path param, also one that
   is not in `defaults`; only the TypeScript types differ.
+- A name in `defaults` that matches no path param of the router prints a warning
+  during generation (most likely a typo).
 
 ## Generated files
 

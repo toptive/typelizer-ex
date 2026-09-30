@@ -72,10 +72,11 @@ guides/                          # ExDoc extras: getting started, DSL, routes, I
 - No runtime dependency beyond those. No network access in the library or in
   the tests.
 - Support Elixir `~> 1.15` and OTP 26+. Check the minimum before a release:
-  `docker run --rm -v "$PWD":/app -w /app -e MIX_ENV=test -e PGHOST=host.docker.internal
+  `docker run --rm -v "$PWD":/app -w /app -e MIX_ENV=test -e PGHOST=host.docker.internal -e PGUSER="$USER"
   hexpm/elixir:1.15.8-erlang-26.0.2-debian-bookworm-20260918-slim sh -c
   "mix local.hex --force && mix local.rebar --force && mix deps.get && mix test"`
-  (on a copy without `_build` and `deps`).
+  (on a copy without `_build` and `deps`). Check that the output does not exclude
+  the `:postgres` tests: `PGUSER` must be a role of the host database.
 
 ## Quality gates (green before every push)
 

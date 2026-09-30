@@ -11,8 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Backward compatible with 0.1. After the upgrade, run `mix typelizer.gen`: the route
 runtime (`routes/runtime.ts`) and `routes/index.ts` get the new exports, so
-`mix typelizer.check` reports them until they are regenerated. Other generated files
-do not change unless you use the new features.
+`mix typelizer.check` reports them until they are regenerated. Route helpers with
+long lines also wrap the way Prettier does now: an action without params whose
+signature is longer than 80 columns, and a single-param route with a long param name
+(about 30 characters or more), get a new line layout. Other generated files do not
+change unless you use the new features.
 
 ### Added
 
@@ -20,13 +23,15 @@ do not change unless you use the new features.
   on every call) and `addUrlDefault()` in the generated runtime, and
   `config :typelizer, routes: [defaults: [:locale]]` to make those params optional
   in the helper types. A route whose only required param is not the first one
-  accepts its value directly (`routes.article.show("intro")`).
+  accepts its value directly (`routes.article.show("intro")`). A default that
+  matches no path param of the router prints a warning.
   ([#1](https://github.com/toptive/typelizer-ex/issues/1))
 - Typed query params: `use Typelizer.Query` and `query :index, page: {:optional,
   :integer}, ...` in a controller (or a LiveView) type the `query` option of the
   route helper through a generated `TaskIndexQuery` type. `:date` and `:time` params
   are strings; datetime params accept a string or a `Date`. `RouteOptions` becomes
-  `RouteOptions<Q>`; its default keeps the 0.1 type.
+  `RouteOptions<Q>`; its default keeps the 0.1 type. Actions of any arity may be
+  declared (for controllers that override `action/2`).
   ([#2](https://github.com/toptive/typelizer-ex/issues/2))
 - `Typelizer.Envelope`: `wrap/3` (with a `key_transform:` option for snake_case
   serializers), `paginated/2` and `cursor_paginated/2` build `{ data, meta }` values; the type specs `{:envelope, spec}`,
@@ -38,7 +43,9 @@ do not change unless you use the new features.
   Inertia prop value against its declared type in dev and test (types, enums,
   nullability, serializer fields and nested serializers, envelopes) and reports
   each mismatch with a path such as `tasks[3].status`. `true` keeps the key-only
-  check. ([#4](https://github.com/toptive/typelizer-ex/issues/4))
+  check. Undeclared `errors` and `flash` props are only checked to be maps (error
+  bags nest). An unknown `validate_inertia_props` value raises instead of turning
+  the check off. ([#4](https://github.com/toptive/typelizer-ex/issues/4))
 
 ## [0.1.0] - 2026-09-30
 

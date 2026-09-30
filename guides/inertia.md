@@ -262,6 +262,10 @@ config :typelizer, validate_inertia_props: :values
   so those fields accept `nil`.
 - Only the props that are present are checked (deferred, partial and once props
   included).
+- `errors` and `flash`, when you do not declare them in `shared`, are only checked
+  to be maps: error bags nest one level deeper.
+- Any other value of `validate_inertia_props` than `false`, `true` or `:values`
+  raises an `ArgumentError`, so a typo does not turn the check off.
 - The message lists at most 20 problems per page.
 
 The check walks every value on every render, so keep it to dev and test.
