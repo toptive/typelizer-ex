@@ -50,7 +50,7 @@ defmodule Typelizer.TypeScriptTest do
 
     results = Jason.decode!(json)
     {query_plug, results} = Map.pop!(results, "queryPlug")
-    ["/tasks", query] = String.split(query_plug, "?")
+    ["/api/v1/projects", query] = String.split(query_plug, "?")
 
     # What Phoenix receives: Plug decodes the query string.
     assert Query.decode(query) == %{
@@ -72,7 +72,11 @@ defmodule Typelizer.TypeScriptTest do
              "show" => %{"url" => "/tasks/42", "method" => "get"},
              "showObject" => "/tasks/a%20b",
              "index" => "/tasks",
-             "query" => "/tasks?page=2&tags[]=a&tags[]=b&filter[status]=todo",
+             "query" => "/api/v1/projects?page=2&tags[]=a&tags[]=b&filter[status]=todo",
+             "typedQuery" =>
+               "/tasks?page=2&status=todo&due_before=2026-09-30T00%3A00%3A00.000Z&min_estimate=1.5" <>
+                 "&sort[0][field]=price&sort[0][dir]=asc&filter[owner_id]=7",
+             "typedShow" => "/tasks/42?include[]=comments&include[]=assignee",
              "anchor" => "/tasks/42#notes",
              "anchorEncoded" => "/tasks/42#a%20b%23c",
              "nested" => "/tasks/7/comments",

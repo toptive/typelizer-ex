@@ -7,8 +7,8 @@ export interface RouteDefinition<M extends Method = Method> {
   method: M;
 }
 
-export interface RouteOptions {
-  query?: Record<string, unknown>;
+export interface RouteOptions<Q extends object = Record<string, unknown>> {
+  query?: Q;
   anchor?: string;
 }
 
@@ -56,7 +56,7 @@ const PARAM = /([:*])([A-Za-z_][A-Za-z0-9_]*)/g;
 export function buildUrl(
   template: string,
   params: Record<string, unknown> | ParamValue,
-  options?: RouteOptions,
+  options?: RouteOptions<object>,
   scalarParam?: string,
 ): string {
   const values = toParamObject(template, params, scalarParam);
@@ -122,7 +122,7 @@ function encodeParam(glob: boolean, value: unknown): string {
 // Plug conventions: arrays of scalars become key[]=v, objects become key[sub]=v,
 // arrays of objects become key[0][sub]=v (as Phoenix forms send them), dates
 // become ISO-8601 strings, and null or undefined values are left out.
-function encodeQuery(query: Record<string, unknown>): string {
+function encodeQuery(query: object): string {
   const parts: string[] = [];
   for (const [key, value] of Object.entries(query)) {
     appendQuery(parts, encodeURIComponent(key), value);

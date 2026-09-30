@@ -9,7 +9,21 @@ defmodule MyAppWeb.TaskController do
   @moduledoc false
   use Phoenix.Controller, formats: [:html, :json]
   use Typelizer.InertiaPage
+  use Typelizer.Query
   import Inertia.Controller
+
+  query(:index,
+    page: {:optional, :integer},
+    status: {:optional, {:enum, [:todo, :doing, :done]}},
+    tags: {:optional, {:list, :string}},
+    due_before: {:optional, :date},
+    min_estimate: {:optional, :decimal},
+    filter: {:optional, {:object, owner_id: :integer, archived: {:optional, :boolean}}},
+    sort: {:optional, {:list, {:object, field: :string, dir: {:enum, [:asc, :desc]}}}}
+  )
+
+  query(:show, include: {:list, {:enum, [:comments, :assignee]}})
+  query(:edit, [])
 
   page "tasks/index",
     props: [

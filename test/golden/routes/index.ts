@@ -34,6 +34,8 @@ export type {
   UrlDefaults,
 } from "./runtime";
 
+export type { TaskEditQuery, TaskIndexQuery, TaskShowQuery } from "./task";
+
 export const routes = {
   apiV1Member,
   apiV1Project,

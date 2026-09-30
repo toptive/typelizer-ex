@@ -89,7 +89,7 @@ defmodule Typelizer.MixProject do
         Guides: ~r{guides/}
       ],
       groups_for_modules: [
-        DSL: [Typelizer.Serializer, Typelizer.InertiaPage],
+        DSL: [Typelizer.Serializer, Typelizer.InertiaPage, Typelizer.Query],
         Runtime: [Typelizer.InertiaPage.ValidateProps],
         Errors: [Typelizer.SerializationError, Typelizer.InertiaPage.PropsError]
       ]

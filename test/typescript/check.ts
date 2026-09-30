@@ -27,10 +27,22 @@ const results: Record<string, unknown> = {
   show: routes.task.show(42),
   showObject: routes.task.show({ id: "a b" }).url,
   index: routes.task.index().url,
-  query: routes.task.index({ query: { page: 2, tags: ["a", "b"], filter: { status: "todo" }, skip: null } }).url,
+  query: routes.apiV1Project.index({ query: { page: 2, tags: ["a", "b"], filter: { status: "todo" }, skip: null } })
+    .url,
+  typedQuery: routes.task.index({
+    query: {
+      page: 2,
+      status: "todo",
+      due_before: new Date(Date.UTC(2026, 8, 30)),
+      min_estimate: "1.5",
+      sort: [{ field: "price", dir: "asc" }],
+      filter: { owner_id: 7 },
+    },
+  }).url,
+  typedShow: routes.task.show(42, { query: { include: ["comments", "assignee"] } }).url,
   anchor: routes.task.show(42, { anchor: "notes" }).url,
   anchorEncoded: routes.task.show(42, { anchor: "a b#c" }).url,
-  queryPlug: routes.task.index({
+  queryPlug: routes.apiV1Project.index({
     query: {
       due: new Date(Date.UTC(2026, 8, 30, 10, 0, 0)),
       sort: [{ field: "price", dir: "asc" }, { field: "name" }],
@@ -84,6 +96,14 @@ try {
 const typeOnly = (): void => {
   // @ts-expect-error: the options of a route with defaulted params come second.
   routes.localizedPage.index({ query: { q: "x" } });
+  // @ts-expect-error: a typo in a typed query param.
+  routes.task.index({ query: { stauts: "todo" } });
+  // @ts-expect-error: a value outside the enum.
+  routes.task.index({ query: { status: "archived" } });
+  // @ts-expect-error: a required query param is missing.
+  routes.task.show(1, { query: {} });
+  // @ts-expect-error: an action declared with no query params.
+  routes.task.edit(1, { query: { x: 1 } });
 };
 void typeOnly;
 

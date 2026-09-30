@@ -7,7 +7,8 @@ locals_without_parens = [
   has_one: 2,
   has_many: 2,
   page: 2,
-  shared: 1
+  shared: 1,
+  query: 2
 ]
 
 [

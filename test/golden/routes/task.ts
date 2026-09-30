@@ -2,6 +2,28 @@
 
 import { buildUrl, type RouteDefinition, type RouteOptions } from "./runtime";
 
+export type TaskEditQuery = Record<string, never>;
+
+export type TaskIndexQuery = {
+  page?: number;
+  status?: "todo" | "doing" | "done";
+  tags?: string[];
+  due_before?: string | Date;
+  min_estimate?: string | number;
+  filter?: {
+    owner_id: number;
+    archived?: boolean;
+  };
+  sort?: {
+    field: string;
+    dir: "asc" | "desc";
+  }[];
+};
+
+export type TaskShowQuery = {
+  include: ("comments" | "assignee")[];
+};
+
 export const task = {
   /** POST /tasks */
   create: (options?: RouteOptions): RouteDefinition<"post"> => ({
@@ -19,13 +41,13 @@ export const task = {
   /** GET /tasks/:id/edit */
   edit: (
     params: { id: string | number } | string | number,
-    options?: RouteOptions,
+    options?: RouteOptions<TaskEditQuery>,
   ): RouteDefinition<"get"> => ({
     url: buildUrl("/tasks/:id/edit", params, options),
     method: "get",
   }),
   /** GET /tasks */
-  index: (options?: RouteOptions): RouteDefinition<"get"> => ({
+  index: (options?: RouteOptions<TaskIndexQuery>): RouteDefinition<"get"> => ({
     url: buildUrl("/tasks", {}, options),
     method: "get",
   }),
@@ -37,7 +59,7 @@ export const task = {
   /** GET /tasks/:id */
   show: (
     params: { id: string | number } | string | number,
-    options?: RouteOptions,
+    options?: RouteOptions<TaskShowQuery>,
   ): RouteDefinition<"get"> => ({
     url: buildUrl("/tasks/:id", params, options),
     method: "get",

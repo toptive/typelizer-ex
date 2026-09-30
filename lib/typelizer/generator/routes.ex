@@ -16,9 +16,11 @@ defmodule Typelizer.Generator.Routes do
   @spec files(module(), map(), :camel | :snake) :: %{String.t() => String.t()}
   def files(router, filters, key_transform) do
     defaults = defaults!(Map.get(filters, :defaults, []))
+    routes = router.__routes__()
+    check_queries!(routes)
 
     groups =
-      router.__routes__()
+      routes
       |> Enum.filter(&generated?(&1, filters))
       |> Enum.map(&entry(&1, key_transform, defaults))
       |> merge()
@@ -32,7 +34,42 @@ defmodule Typelizer.Generator.Routes do
 
     group_files
     |> Map.put("runtime.ts", runtime_file())
-    |> Map.put("index.ts", index_file(Enum.map(groups, &elem(&1, 0))))
+    |> Map.put("index.ts", index_file(groups))
+  end
+
+  # In the controllers (and live views) of the router, every query declaration must
+  # belong to an action that a route points to. Modules that the router does not use
+  # may belong to another router, so they are not checked.
+  defp check_queries!(routes) do
+    targets = MapSet.new(routes, &target/1)
+
+    routes
+    |> Enum.map(&elem(target(&1), 0))
+    |> Enum.uniq()
+    |> Enum.flat_map(fn module -> Enum.map(queries(module), &{module, elem(&1, 0)}) end)
+    |> Enum.reject(&MapSet.member?(targets, &1))
+    |> Enum.sort()
+    |> case do
+      [] ->
+        :ok
+
+      [{module, action} | _] ->
+        raise GenerationError,
+              "#{inspect(module)} declares query #{inspect(action)}, but no route points to " <>
+                "#{inspect(module)}.#{action}. Remove the declaration or add the route"
+    end
+  end
+
+  defp target(%{metadata: %{phoenix_live_view: {view, action, _, _}}}),
+    do: {view, action || :index}
+
+  defp target(route),
+    do: {route.plug, if(is_atom(route.plug_opts), do: route.plug_opts, else: :index)}
+
+  defp queries(module) do
+    if Code.ensure_loaded?(module) and function_exported?(module, :__typelizer_queries__, 0),
+      do: module.__typelizer_queries__(),
+      else: %{}
   end
 
   defp generated?(route, filters) do
@@ -79,9 +116,12 @@ defmodule Typelizer.Generator.Routes do
               "a valid TypeScript name. Set as: on the route"
     end
 
+    {module, action_name} = target(route)
+
     %{
       group: group,
       action: action,
+      query: Map.get(queries(module), action_name),
       verb: route.verb,
       path: route.path,
       params: params(route.path, key_transform, defaults),
@@ -155,25 +195,80 @@ defmodule Typelizer.Generator.Routes do
 
   defp group_file(group, entries) do
     import = ~s(import { buildUrl, type RouteDefinition, type RouteOptions } from "./runtime";)
-    body = "export const #{group} = {\n" <> Enum.map_join(entries, &action/1) <> "} as const;"
-    TS.file(nil, [import, body])
+
+    query_types =
+      entries
+      |> Enum.map(&query_type(group, &1))
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.join("\n\n")
+
+    body =
+      "export const #{group} = {\n" <> Enum.map_join(entries, &action(group, &1)) <> "} as const;"
+
+    TS.file(nil, [import, query_types, body])
   end
 
-  defp action(entry) do
+  @doc false
+  # The name of the query type of an action: `TaskIndexQuery`.
+  def query_type_name(group, action),
+    do: Naming.upcase_first(group) <> Naming.upcase_first(action) <> "Query"
+
+  defp query_type(_group, %{query: nil}), do: ""
+
+  defp query_type(group, %{query: []} = entry),
+    do: "export type #{query_type_name(group, entry.action)} = Record<string, never>;"
+
+  defp query_type(group, %{query: props} = entry) do
+    props =
+      Enum.map(props, fn {name, key, spec, optional} ->
+        {name, key, query_spec(spec), optional}
+      end)
+
+    "export type #{query_type_name(group, entry.action)} = {\n" <>
+      TS.props(props, fn _ -> "never" end, 1) <> "};"
+  end
+
+  # What the frontend may pass: dates as strings or Date objects (buildUrl turns a
+  # Date into ISO-8601), decimals as strings or numbers.
+  defp query_spec(:temporal), do: {:ts, "string | Date", []}
+  defp query_spec({:decimal, _}), do: {:ts, "string | number", []}
+
+  defp query_spec({kind, spec}) when kind in [:list, :record, :nullable],
+    do: {kind, query_spec(spec)}
+
+  defp query_spec({kind, specs}) when kind in [:union, :intersection],
+    do: {kind, Enum.map(specs, &query_spec/1)}
+
+  defp query_spec({:object, props}),
+    do: {:object, Enum.map(props, fn {n, k, s, o} -> {n, k, query_spec(s), o} end)}
+
+  defp query_spec(spec), do: spec
+
+  defp action(group, entry) do
     method = entry.verb |> to_string()
     doc = "  /** #{String.upcase(method)} #{entry.path} */\n"
     result = ~s|): RouteDefinition<"#{method}"> => ({|
     required = Enum.reject(entry.params, & &1.default?)
 
+    options =
+      if entry.query,
+        do: "options?: RouteOptions<#{query_type_name(group, entry.action)}>",
+        else: "options?: RouteOptions"
+
+    one_line = "  #{property(entry.action)}: (#{options}" <> result
+
     signature =
       case entry.params do
+        [] when byte_size(one_line) <= 80 ->
+          one_line <> "\n"
+
         [] ->
-          "  #{property(entry.action)}: (options?: RouteOptions" <> result <> "\n"
+          "  #{property(entry.action)}: (\n    #{options},\n  " <> result <> "\n"
 
         params ->
           "  #{property(entry.action)}: (\n" <>
             params_arg(params, required) <>
-            "    options?: RouteOptions,\n" <>
+            "    #{options},\n" <>
             "  " <> result <> "\n"
       end
 
@@ -258,8 +353,22 @@ defmodule Typelizer.Generator.Routes do
   defp value_type(true), do: "string | string[]"
   defp value_type(false), do: "string | number"
 
-  defp index_file(groups) do
+  defp index_file(entries_by_group) do
+    groups = Enum.map(entries_by_group, &elem(&1, 0))
     imports = Enum.map_join(groups, "\n", &~s(import { #{&1} } from "./#{&1}";))
+
+    query_types =
+      for {group, entries} <- entries_by_group,
+          names =
+            for(
+              %{query: q} = e <- Enum.sort_by(entries, & &1.action),
+              q,
+              do: query_type_name(group, e.action)
+            ),
+          names != [],
+          do:
+            TS.export_list("export type", names)
+            |> String.replace_suffix(";", ~s( from "./#{group}";))
 
     exports =
       Enum.join(
@@ -281,7 +390,7 @@ defmodule Typelizer.Generator.Routes do
           "export const routes = {\n" <> Enum.map_join(groups, &"  #{&1},\n") <> "} as const;"
       end
 
-    TS.file(nil, [imports, exports, routes])
+    TS.file(nil, [imports, exports, Enum.join(query_types, "\n"), routes])
   end
 
   defp runtime_file do
@@ -294,8 +403,8 @@ defmodule Typelizer.Generator.Routes do
         method: M;
       }
 
-      export interface RouteOptions {
-        query?: Record<string, unknown>;
+      export interface RouteOptions<Q extends object = Record<string, unknown>> {
+        query?: Q;
         anchor?: string;
       }
 
@@ -343,7 +452,7 @@ defmodule Typelizer.Generator.Routes do
       export function buildUrl(
         template: string,
         params: Record<string, unknown> | ParamValue,
-        options?: RouteOptions,
+        options?: RouteOptions<object>,
         scalarParam?: string,
       ): string {
         const values = toParamObject(template, params, scalarParam);
@@ -409,7 +518,7 @@ defmodule Typelizer.Generator.Routes do
       // Plug conventions: arrays of scalars become key[]=v, objects become key[sub]=v,
       // arrays of objects become key[0][sub]=v (as Phoenix forms send them), dates
       // become ISO-8601 strings, and null or undefined values are left out.
-      function encodeQuery(query: Record<string, unknown>): string {
+      function encodeQuery(query: object): string {
         const parts: string[] = [];
         for (const [key, value] of Object.entries(query)) {
           appendQuery(parts, encodeURIComponent(key), value);
