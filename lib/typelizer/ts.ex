@@ -207,7 +207,8 @@ defmodule Typelizer.TS do
     tail = if from, do: " from #{literal(from)};", else: ";"
     line = "#{keyword} { #{Enum.join(names, ", ")} }" <> tail
 
-    if String.length(line) <= 80 do
+    # Prettier keeps a statement with a single name on one line, however long.
+    if match?([_], names) or String.length(line) <= 80 do
       line
     else
       "#{keyword} {\n" <> Enum.map_join(names, &"  #{&1},\n") <> "}" <> tail

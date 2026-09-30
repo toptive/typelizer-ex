@@ -55,6 +55,18 @@ defmodule Typelizer.TSTest do
     end
   end
 
+  test "export_list/3 wraps long lists, but never a single name" do
+    long = "../../../very/long/directory/settings/profile-edit.props"
+
+    assert TS.export_list("import type", ["SettingsProfileEditProps"], long) ==
+             ~s(import type { SettingsProfileEditProps } from "#{long}";)
+
+    assert TS.export_list("import type", ["A", "B"], long <> "/and/more") ==
+             ~s(import type {\n  A,\n  B,\n} from "#{long}/and/more";)
+
+    assert TS.export_list("export", ["a", "b"]) == "export { a, b };"
+  end
+
   describe "naming" do
     doctest Typelizer.Naming
 
