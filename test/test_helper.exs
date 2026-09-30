@@ -1,6 +1,10 @@
-# The PostgreSQL tests run when a local server accepts connections.
+# The PostgreSQL tests run when a server accepts connections on PGHOST (default:
+# localhost) and PGPORT (default: 5432).
+pg_host = System.get_env("PGHOST", "localhost")
+pg_port = String.to_integer(System.get_env("PGPORT", "5432"))
+
 postgres? =
-  case :gen_tcp.connect(~c"localhost", 5432, [], 500) do
+  case :gen_tcp.connect(String.to_charlist(pg_host), pg_port, [], 500) do
     {:ok, socket} ->
       :gen_tcp.close(socket)
       true
@@ -10,7 +14,7 @@ postgres? =
   end
 
 unless postgres? do
-  IO.puts("PostgreSQL is not reachable on localhost:5432: skipping the :postgres tests.")
+  IO.puts("PostgreSQL is not reachable on #{pg_host}:#{pg_port}: skipping the :postgres tests.")
 end
 
 # The TypeScript tests run when Node and the TypeScript compiler are installed
