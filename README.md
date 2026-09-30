@@ -142,4 +142,4 @@ The idea, the name and the developer experience come from
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/toptive/typelizer-ex/blob/main/LICENSE).

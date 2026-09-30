@@ -12,6 +12,8 @@ defmodule Typelizer.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      # Optional dependencies, used only when the host app has them.
+      xref: [exclude: [Decimal, Ecto.Adapters.SQL, Ecto.Adapters.Postgres]],
       name: "Typelizer",
       description:
         "Define once in Elixir. Generate everywhere in TypeScript: serializers, " <>
@@ -45,7 +47,7 @@ defmodule Typelizer.MixProject do
       {:plug, "~> 1.14", optional: true},
       {:phoenix, "~> 1.7", optional: true},
       {:inertia, "~> 2.6", optional: true},
-      {:jason, "~> 1.4", only: [:dev, :test]},
+      {:jason, "~> 1.4", optional: true},
       {:postgrex, "~> 0.19", only: :test},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

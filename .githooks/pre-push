@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs every quality gate before a push. Install with:
+#   git config core.hooksPath .githooks
+set -e
+mix check
