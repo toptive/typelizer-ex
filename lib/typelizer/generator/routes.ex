@@ -296,8 +296,8 @@ defmodule Typelizer.Generator.Routes do
         params: Record<string, unknown> | ParamValue,
       ): Record<string, unknown> {
         if (typeof params === "object" && !Array.isArray(params)) return params;
-        const first = new RegExp(PARAM.source).exec(template);
-        return first ? { [first[2]]: params } : {};
+        const name = new RegExp(PARAM.source).exec(template)?.[2];
+        return name ? { [name]: params } : {};
       }
 
       // Path params accept the snake_case name of the router and its camelCase form.

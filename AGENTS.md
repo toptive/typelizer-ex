@@ -80,9 +80,13 @@ mix format --check-formatted
 mix compile --warnings-as-errors
 mix credo --strict
 mix dialyzer
-mix test                      # includes the golden-file tests
+mix test                      # golden files, PostgreSQL and TypeScript tests
 mix docs                      # must build without warnings
 ```
+
+The PostgreSQL tests need a local server; the TypeScript tests (tsc in strict mode
+on the golden files, route helpers run in Node) need `npm ci --prefix test/typescript`.
+Both are skipped with a notice when the tool is missing: install them before a push.
 
 `mix check` (ex_check) runs them all. `.githooks/pre-push` runs `mix check`;
 install it with `git config core.hooksPath .githooks`.

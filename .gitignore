@@ -10,3 +10,4 @@ typelizer-*.tar
 /priv/plts/
 .elixir_ls/
 .DS_Store
+node_modules/

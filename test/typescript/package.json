@@ -1,0 +1,8 @@
+{
+  "name": "typelizer-typescript-tests",
+  "private": true,
+  "description": "The TypeScript compiler used by test/typelizer/typescript_test.exs. Install with: npm ci --prefix test/typescript",
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

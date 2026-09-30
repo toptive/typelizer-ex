@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Route helper generation from the Phoenix router: one typed helper per route
   (`routes.task.show(id)` → `{ url, method }`), typed path params, query strings,
   anchors, `setRoutesBaseUrl()` and path filters.
+- The generated TypeScript passes `tsc --strict --noUncheckedIndexedAccess
+  --exactOptionalPropertyTypes --verbatimModuleSyntax`; a test checks it on every run.
 - `Typelizer.InertiaPage`: `page/2` declares the props of an Inertia page and
   `shared/1` the props shared by every page.
 - `Typelizer.InertiaPage.ValidateProps`: a plug that raises

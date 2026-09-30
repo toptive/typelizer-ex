@@ -13,4 +13,15 @@ unless postgres? do
   IO.puts("PostgreSQL is not reachable on localhost:5432: skipping the :postgres tests.")
 end
 
-ExUnit.start(exclude: if(postgres?, do: [], else: [:postgres]))
+# The TypeScript tests run when Node and the TypeScript compiler are installed
+# (npm ci --prefix test/typescript).
+typescript? = Typelizer.TypeScript.tsc() != nil
+
+unless typescript? do
+  IO.puts(
+    "Node or TypeScript is missing (npm ci --prefix test/typescript): skipping the :typescript tests."
+  )
+end
+
+exclude = [postgres: not postgres?, typescript: not typescript?]
+ExUnit.start(exclude: for({tag, true} <- exclude, do: tag))
