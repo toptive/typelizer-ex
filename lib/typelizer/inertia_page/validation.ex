@@ -90,14 +90,15 @@ defmodule Typelizer.InertiaPage.Validation do
   end
 
   # With `validate_inertia_props: :values`, the values of the present props are
-  # checked against their specs too.
+  # checked against their specs too. Undeclared `errors` and `flash` are only checked
+  # to be maps: error bags nest one level deeper.
   defp value_problems(%{values: values}, props) when is_map(values) do
     declared = Enum.map(props, fn {_name, key, spec, _optional} -> {key, spec} end)
 
     defaults =
       for key <- @default_shared,
           not List.keymember?(declared, key, 0),
-          do: {key, {:record, :string}}
+          do: {key, {:record, :unknown}}
 
     values
     |> ValueCheck.errors(declared ++ defaults)

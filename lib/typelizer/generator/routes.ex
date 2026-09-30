@@ -18,6 +18,7 @@ defmodule Typelizer.Generator.Routes do
     defaults = defaults!(Map.get(filters, :defaults, []))
     routes = router.__routes__()
     check_queries!(routes)
+    warn_unused_defaults(router, routes, defaults)
 
     groups =
       routes
@@ -35,6 +36,23 @@ defmodule Typelizer.Generator.Routes do
     group_files
     |> Map.put("runtime.ts", runtime_file())
     |> Map.put("index.ts", index_file(groups))
+  end
+
+  # A default that matches no path param is most likely a typo.
+  defp warn_unused_defaults(router, routes, defaults) do
+    names =
+      for route <- routes,
+          param <- params(route.path, :snake, []),
+          into: MapSet.new(),
+          do: param.name
+
+    for name <- defaults, not MapSet.member?(names, name) do
+      IO.warn(
+        "typelizer: config :typelizer, routes: [defaults: [...]] names #{inspect(name)}, " <>
+          "but no route of #{inspect(router)} has a path param with that name",
+        []
+      )
+    end
   end
 
   # In the controllers (and live views) of the router, every query declaration must

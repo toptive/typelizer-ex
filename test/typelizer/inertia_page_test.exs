@@ -4,7 +4,7 @@ defmodule Typelizer.InertiaPageTest do
   import Plug.Conn
   import Plug.Test
 
-  alias Typelizer.InertiaPage.{PropsError, ValidateProps}
+  alias Typelizer.InertiaPage.{PropsError, ValidateProps, Validation}
 
   setup do
     Application.put_env(:typelizer, :validate_inertia_props, true)
@@ -224,6 +224,45 @@ defmodule Typelizer.InertiaPageTest do
       Application.put_env(:typelizer, :validate_inertia_props, true)
       assert request(MyAppWeb.TaskController, :index, %{"bad" => "values"}).status == 200
     end
+  end
+
+  test "an unknown validate_inertia_props value raises" do
+    Application.put_env(:typelizer, :validate_inertia_props, :value)
+
+    assert_raise ArgumentError,
+                 ~r/validate_inertia_props: must be false, true or :values, got: :value/,
+                 fn ->
+                   ValidateProps.call(conn(:get, "/"), [])
+                 end
+  end
+
+  test "undeclared errors may hold nested error bags" do
+    rendered = %{
+      component: "dashboard",
+      keys: ~w(currentUser locale errors flash stats recent),
+      partial?: false,
+      deferred: [],
+      once: [],
+      values: %{
+        "currentUser" => nil,
+        "locale" => "en",
+        "errors" => %{"createTask" => %{"title" => "can't be blank"}},
+        "flash" => %{},
+        "stats" => nil,
+        "recent" => []
+      }
+    }
+
+    assert {:error, message} =
+             Validation.check(
+               rendered,
+               MyAppWeb.DashboardController,
+               [MyAppWeb.InertiaShared],
+               :raise
+             )
+
+    refute message =~ "errors"
+    assert message =~ "stats: expected a DashboardStats object, got nil"
   end
 
   test "the plug does nothing when validation is off" do

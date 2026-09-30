@@ -44,10 +44,17 @@ if Code.ensure_loaded?(Plug.Conn) do
 
     @impl Plug
     def call(conn, _opts) do
-      if Application.get_env(:typelizer, :validate_inertia_props, false) in [true, :values] do
-        Plug.Conn.register_before_send(conn, &validate/1)
-      else
-        conn
+      case Application.get_env(:typelizer, :validate_inertia_props, false) do
+        mode when mode in [true, :values] ->
+          Plug.Conn.register_before_send(conn, &validate/1)
+
+        mode when mode in [false, nil] ->
+          conn
+
+        other ->
+          raise ArgumentError,
+                "config :typelizer, validate_inertia_props: must be false, true or :values, " <>
+                  "got: #{inspect(other)}"
       end
     end
 
