@@ -25,7 +25,7 @@ config :typelizer,
   # Route helpers.
   routes: [
     include: [],                   # path prefixes or regexes; [] keeps every route
-    exclude: []                    # path prefixes or regexes
+    exclude: ["/dev"]              # path prefixes or regexes
   ],
 
   # Inertia (runtime validation, dev and test only).

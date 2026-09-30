@@ -99,6 +99,11 @@ An entry is a path prefix (a string) or a `Regex`. A prefix matches whole path
 segments: `"/api"` matches `/api` and `/api/tasks`, not `/apiary`.
 `include: []` (the default) keeps every route. `exclude` wins over `include`.
 
+The default is `exclude: ["/dev"]`: Phoenix puts its development-only routes
+(LiveDashboard, the mailbox preview) under `/dev`, and they exist only in the dev
+environment. Keep them out, or `mix typelizer.check` gives different results in
+dev and in CI. When you set `exclude`, it replaces the default.
+
 ## Generated files
 
 The default directory is `assets/js/generated/routes`:
