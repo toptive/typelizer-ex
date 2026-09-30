@@ -245,6 +245,14 @@ defmodule Typelizer.SerializerTest do
     end
   end
 
+  defmodule Point do
+    use Ecto.Type
+    def type, do: :point
+    def cast(value), do: {:ok, value}
+    def load(value), do: {:ok, value}
+    def dump(value), do: {:ok, value}
+  end
+
   describe "compile-time errors" do
     defp compile_error(body, opts \\ "schema: MyApp.Tasks.Task") do
       module = "Typelizer.SerializerTest.M#{System.unique_integer([:positive])}"
@@ -352,20 +360,40 @@ defmodule Typelizer.SerializerTest do
                "name: must be a valid TypeScript identifier"
     end
 
-    test "an unknown Ecto type" do
-      defmodule Point do
-        use Ecto.Type
-        def type, do: :point
-        def cast(value), do: {:ok, value}
-        def load(value), do: {:ok, value}
-        def dump(value), do: {:ok, value}
+    test "an unknown Ecto type inside an embed" do
+      defmodule Coordinates do
+        use Ecto.Schema
+
+        embedded_schema do
+          field :point, Typelizer.SerializerTest.Point
+        end
       end
 
+      defmodule Place do
+        use Ecto.Schema
+
+        embedded_schema do
+          embeds_one(:coordinates, Coordinates)
+        end
+      end
+
+      message =
+        compile_error("attributes [:coordinates]", "schema: Typelizer.SerializerTest.Place")
+
+      assert message =~ "cannot map the Ecto type :point"
+
+      assert message =~
+               "(field :point of the embedded schema Typelizer.SerializerTest.Coordinates)"
+
+      assert message =~ "Write a serializer for Typelizer.SerializerTest.Coordinates"
+    end
+
+    test "an unknown Ecto type" do
       defmodule Weird do
         use Ecto.Schema
 
         embedded_schema do
-          field(:point, {:array, Point})
+          field :point, {:array, Point}
         end
       end
 

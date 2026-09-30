@@ -4,6 +4,8 @@ defmodule Typelizer.TypeScriptTest do
   #   npm ci --prefix test/typescript
   use ExUnit.Case, async: true
 
+  alias Plug.Conn.Query
+
   @moduletag :typescript
   @moduletag :tmp_dir
 
@@ -37,7 +39,7 @@ defmodule Typelizer.TypeScriptTest do
     ["/tasks", query] = String.split(query_plug, "?")
 
     # What Phoenix receives: Plug decodes the query string.
-    assert Plug.Conn.Query.decode(query) == %{
+    assert Query.decode(query) == %{
              "due" => "2026-09-30T10:00:00.000Z",
              "sort" => %{
                "0" => %{"field" => "price", "dir" => "asc"},

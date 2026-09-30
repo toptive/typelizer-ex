@@ -111,8 +111,10 @@ defmodule Typelizer.EctoSchema do
   end
 
   defp parameterized(Ecto.Embedded, %{cardinality: cardinality, related: related}, ctx) do
-    object = {:object, embed_props(related, ctx)}
-    {:ok, if(cardinality == :many, do: {:list, object}, else: object)}
+    with {:ok, props} <- embed_props(related, ctx) do
+      object = {:object, props}
+      {:ok, if(cardinality == :many, do: {:list, object}, else: object)}
+    end
   end
 
   defp parameterized(module, params, ctx) do
@@ -130,13 +132,28 @@ defmodule Typelizer.EctoSchema do
   # Every field of an embedded schema, in declaration order. Only the primary key is
   # not nullable: embeds have no database column to read.
   defp embed_props(related, ctx) do
-    primary_key = related.__schema__(:primary_key)
+    embed_props(related, related.__schema__(:fields), ctx, [])
+  end
 
-    Enum.map(related.__schema__(:fields), fn field ->
-      {:ok, spec} = infer(related.__schema__(:type, field), ctx)
-      spec = if field in primary_key, do: spec, else: TypeSpec.nullable(spec)
-      {field, Naming.key(field, ctx.key_transform), spec, false}
-    end)
+  defp embed_props(_related, [], _ctx, acc), do: {:ok, Enum.reverse(acc)}
+
+  defp embed_props(related, [field | rest], ctx, acc) do
+    case infer(related.__schema__(:type, field), ctx) do
+      {:ok, spec} ->
+        primary_key? = field in related.__schema__(:primary_key)
+        spec = if primary_key?, do: spec, else: TypeSpec.nullable(spec)
+        prop = {field, Naming.key(field, ctx.key_transform), spec, false}
+        embed_props(related, rest, ctx, [prop | acc])
+
+      {:error, message} ->
+        {:error, embed_error(related, field, message)}
+    end
+  end
+
+  defp embed_error(related, field, message) do
+    "#{message} (field #{inspect(field)} of the embedded schema #{inspect(related)}). " <>
+      "Write a serializer for #{inspect(related)} and use has_one or has_many, " <>
+      "or declare this attribute with type: and value:"
   end
 
   defp field_nullability(schema, field) do
