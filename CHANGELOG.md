@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-09-30
 
 ### Added
 
@@ -32,3 +32,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Column nullability from PostgreSQL `information_schema` when `repo:` is set.
 - User guides for the public API: getting started, serializers, route helpers,
   Inertia page props and configuration.
+
+[0.1.0]: https://github.com/toptive/typelizer-ex/releases/tag/v0.1.0
