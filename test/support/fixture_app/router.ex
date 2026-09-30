@@ -22,6 +22,14 @@ defmodule MyAppWeb.Router do
     live "/board/:id/edit", BoardLive, :edit
   end
 
+  scope "/:locale", MyAppWeb, as: :localized do
+    pipe_through :browser
+
+    get "/", PageController, :index
+    get "/articles/:slug", PageController, :article
+    get "/sections/:section/*path", FileController, :show
+  end
+
   scope "/api/v1", MyAppWeb.Api.V1, as: :api_v1 do
     resources "/projects", ProjectController, only: [:index, :show, :update]
     get "/projects/:project_id/members/:member_id", MemberController, :show

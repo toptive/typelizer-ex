@@ -84,6 +84,15 @@ defmodule Typelizer.TypeScriptTest do
              "live" => "/board",
              "baseUrl" => "https://app.example.com/",
              "relativeAgain" => "/about",
+             "defaultScalar" => "/en/articles/intro",
+             "defaultOverride" => "/es/articles/intro",
+             "defaultOnly" => "/en",
+             "defaultWithOptions" => "/en?q=x",
+             "defaultFunction" => "/fr",
+             "defaultFunctionLater" => "/de",
+             "addDefault" => "/de/sections/news/a/b",
+             "addToObject" => "/it",
+             "missingDefault" => ~s(typelizer: missing route param "locale" for /:locale),
              "missingParam" =>
                ~s(typelizer: missing route param "memberId" for /api/v1/projects/:project_id/members/:member_id)
            }

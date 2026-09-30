@@ -14,7 +14,10 @@ export interface RouteOptions {
 
 type ParamValue = string | number | string[];
 
+export type UrlDefaults = Record<string, unknown>;
+
 let routesBaseUrl = "";
+let urlDefaults: UrlDefaults | (() => UrlDefaults) = {};
 
 /**
  * Prefixes every generated URL with an origin, for example
@@ -24,17 +27,43 @@ export function setRoutesBaseUrl(url: string): void {
   routesBaseUrl = url.replace(/\/+$/, "");
 }
 
+/**
+ * Sets values for path params that many routes share, such as a locale. Pass a
+ * function to read the current values on every call. A param given to a helper
+ * wins over its default.
+ */
+export function setUrlDefaults(
+  defaults: UrlDefaults | (() => UrlDefaults),
+): void {
+  urlDefaults = defaults;
+}
+
+/** Adds one URL default and keeps the others. */
+export function addUrlDefault(key: string, value: unknown): void {
+  const current = urlDefaults;
+  urlDefaults =
+    typeof current === "function"
+      ? () => ({ ...current(), [key]: value })
+      : { ...current, [key]: value };
+}
+
 const PARAM = /([:*])([A-Za-z_][A-Za-z0-9_]*)/g;
 
-/** Builds a URL from a path template such as "/tasks/:id". */
+/**
+ * Builds a URL from a path template such as "/tasks/:id". A single value (not an
+ * object) is the value of `scalarParam`, or of the first param of the template.
+ */
 export function buildUrl(
   template: string,
   params: Record<string, unknown> | ParamValue,
   options?: RouteOptions,
+  scalarParam?: string,
 ): string {
-  const values = toParamObject(template, params);
+  const values = toParamObject(template, params, scalarParam);
+  const defaults =
+    typeof urlDefaults === "function" ? urlDefaults() : urlDefaults;
   const path = template.replace(PARAM, (_match, kind: string, name: string) =>
-    encodeParam(kind === "*", paramValue(values, name, template)),
+    encodeParam(kind === "*", paramValue(values, defaults, name, template)),
   );
   const query = options?.query ? encodeQuery(options.query) : "";
 
@@ -49,28 +78,39 @@ export function buildUrl(
 function toParamObject(
   template: string,
   params: Record<string, unknown> | ParamValue,
+  scalarParam?: string,
 ): Record<string, unknown> {
   if (typeof params === "object" && !Array.isArray(params)) return params;
-  const name = new RegExp(PARAM.source).exec(template)?.[2];
+  const name = scalarParam ?? new RegExp(PARAM.source).exec(template)?.[2];
   return name ? { [name]: params } : {};
 }
 
 // Path params accept the snake_case name of the router and its camelCase form.
+// A given value wins over a URL default.
 function paramValue(
   values: Record<string, unknown>,
+  defaults: UrlDefaults,
   name: string,
   template: string,
 ): unknown {
   const camel = name.replace(/_([a-z0-9])/g, (_m, c: string) =>
     c.toUpperCase(),
   );
-  const value = name in values ? values[name] : values[camel];
+  const value = lookup(values, name, camel) ?? lookup(defaults, name, camel);
   if (value === undefined || value === null) {
     throw new Error(
       `typelizer: missing route param "${camel}" for ${template}`,
     );
   }
   return value;
+}
+
+function lookup(
+  values: Record<string, unknown>,
+  name: string,
+  camel: string,
+): unknown {
+  return name in values ? values[name] : values[camel];
 }
 
 function encodeParam(glob: boolean, value: unknown): string {

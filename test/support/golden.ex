@@ -11,6 +11,7 @@ defmodule Typelizer.Golden do
       app: :typelizer,
       root: root,
       output: [serializers: "serializers", routes: "routes", pages: "pages"],
+      routes: [exclude: ["/dev"], defaults: [:locale]],
       columns: MyApp.Database.columns()
     )
   end

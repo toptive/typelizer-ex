@@ -9,7 +9,7 @@ defmodule Typelizer.Config do
     pages: "assets/js/generated/pages"
   ]
 
-  @default_routes [include: [], exclude: ["/dev"]]
+  @default_routes [include: [], exclude: ["/dev"], defaults: []]
 
   defstruct app: nil,
             root: ".",
@@ -36,7 +36,7 @@ defmodule Typelizer.Config do
           decimal_type: :string | :number,
           type_names: %{optional(module()) => String.t()},
           repo: module() | nil,
-          routes: %{include: list(), exclude: list()},
+          routes: %{include: list(), exclude: list(), defaults: list()},
           prettier: boolean(),
           columns: map() | nil
         }

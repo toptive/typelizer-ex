@@ -118,7 +118,7 @@ defmodule Typelizer.NullabilityTest do
   test "Config.load/1 reads the defaults" do
     config = Config.load(app: :typelizer)
     assert config.output.serializers == "assets/js/generated/serializers"
-    assert config.routes == %{include: [], exclude: ["/dev"]}
+    assert config.routes == %{include: [], exclude: ["/dev"], defaults: []}
     assert config.key_transform == :camel
   end
 end

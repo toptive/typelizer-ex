@@ -1,6 +1,7 @@
 // Compiled together with the golden files by test/typelizer/typescript_test.exs.
 // It uses the generated types and prints the results of the route helpers as JSON.
-import { routes, setRoutesBaseUrl } from "./routes";
+import { addUrlDefault, routes, setRoutesBaseUrl, setUrlDefaults } from "./routes";
+import type { UrlDefaults } from "./routes";
 import type { Comment, DashboardStats, Project, Task, User } from "./serializers";
 import type { Pages, SharedProps, TasksIndexProps } from "./pages";
 
@@ -52,6 +53,39 @@ setRoutesBaseUrl("https://app.example.com/");
 results["baseUrl"] = routes.page.home().url;
 setRoutesBaseUrl("");
 results["relativeAgain"] = routes.page.about().url;
+
+const defaults: UrlDefaults = { locale: "en" };
+setUrlDefaults(defaults);
+results["defaultScalar"] = routes.localizedPage.article("intro").url;
+results["defaultOverride"] = routes.localizedPage.article({ slug: "intro", locale: "es" }).url;
+results["defaultOnly"] = routes.localizedPage.index().url;
+results["defaultWithOptions"] = routes.localizedPage.index({}, { query: { q: "x" } }).url;
+let current = "fr";
+setUrlDefaults(() => ({ locale: current }));
+results["defaultFunction"] = routes.localizedPage.index().url;
+current = "de";
+results["defaultFunctionLater"] = routes.localizedPage.index().url;
+addUrlDefault("section", "news");
+results["addDefault"] = routes.localizedFile.show({ path: ["a", "b"] } as unknown as {
+  section: string;
+  path: string[];
+}).url;
+setUrlDefaults({});
+addUrlDefault("locale", "it");
+results["addToObject"] = routes.localizedPage.index().url;
+setUrlDefaults({});
+try {
+  routes.localizedPage.index();
+} catch (error) {
+  results["missingDefault"] = (error as Error).message;
+}
+
+// Type checks only (never called).
+const typeOnly = (): void => {
+  // @ts-expect-error: the options of a route with defaulted params come second.
+  routes.localizedPage.index({ query: { q: "x" } });
+};
+void typeOnly;
 
 try {
   routes.apiV1Member.show({ projectId: 1 } as unknown as { projectId: number; memberId: number });

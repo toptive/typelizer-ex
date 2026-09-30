@@ -4,19 +4,43 @@ import { apiV1Member } from "./apiV1Member";
 import { apiV1Project } from "./apiV1Project";
 import { board } from "./board";
 import { file } from "./file";
+import { localizedFile } from "./localizedFile";
+import { localizedPage } from "./localizedPage";
 import { page } from "./page";
 import { task } from "./task";
 import { taskComment } from "./taskComment";
 
-export { apiV1Member, apiV1Project, board, file, page, task, taskComment };
-export { buildUrl, setRoutesBaseUrl } from "./runtime";
-export type { Method, RouteDefinition, RouteOptions } from "./runtime";
+export {
+  apiV1Member,
+  apiV1Project,
+  board,
+  file,
+  localizedFile,
+  localizedPage,
+  page,
+  task,
+  taskComment,
+};
+export {
+  addUrlDefault,
+  buildUrl,
+  setRoutesBaseUrl,
+  setUrlDefaults,
+} from "./runtime";
+export type {
+  Method,
+  RouteDefinition,
+  RouteOptions,
+  UrlDefaults,
+} from "./runtime";
 
 export const routes = {
   apiV1Member,
   apiV1Project,
   board,
   file,
+  localizedFile,
+  localizedPage,
   page,
   task,
   taskComment,

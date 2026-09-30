@@ -15,10 +15,12 @@ defmodule Typelizer.Generator.Routes do
   @doc "The generated files: `%{relative_path => content}`."
   @spec files(module(), map(), :camel | :snake) :: %{String.t() => String.t()}
   def files(router, filters, key_transform) do
+    defaults = defaults!(Map.get(filters, :defaults, []))
+
     groups =
       router.__routes__()
       |> Enum.filter(&generated?(&1, filters))
-      |> Enum.map(&entry(&1, key_transform))
+      |> Enum.map(&entry(&1, key_transform, defaults))
       |> merge()
       |> Enum.group_by(& &1.group)
       |> Enum.sort()
@@ -58,7 +60,17 @@ defmodule Typelizer.Generator.Routes do
             inspect(other)
   end
 
-  defp entry(route, key_transform) do
+  defp defaults!(defaults) do
+    if is_list(defaults) and Enum.all?(defaults, &(is_atom(&1) or is_binary(&1))) do
+      Enum.map(defaults, &to_string/1)
+    else
+      raise GenerationError,
+            "config :typelizer, routes: [defaults: ...] takes a list of path param names, " <>
+              "for example [:locale], got: #{inspect(defaults)}"
+    end
+  end
+
+  defp entry(route, key_transform, defaults) do
     {group, action} = names(route)
 
     unless Naming.identifier?(group) and group not in @reserved do
@@ -72,7 +84,7 @@ defmodule Typelizer.Generator.Routes do
       action: action,
       verb: route.verb,
       path: route.path,
-      params: params(route.path, key_transform),
+      params: params(route.path, key_transform, defaults),
       route: route
     }
   end
@@ -100,11 +112,16 @@ defmodule Typelizer.Generator.Routes do
     {group, Naming.camelize(to_string(action))}
   end
 
-  defp params(path, key_transform) do
+  defp params(path, key_transform, defaults) do
     ~r/[:*]([A-Za-z_][A-Za-z0-9_]*)/
     |> Regex.scan(path)
     |> Enum.map(fn [match, name] ->
-      %{key: Naming.key(name, key_transform), glob?: String.starts_with?(match, "*")}
+      %{
+        name: name,
+        key: Naming.key(name, key_transform),
+        glob?: String.starts_with?(match, "*"),
+        default?: name in defaults
+      }
     end)
   end
 
@@ -146,6 +163,7 @@ defmodule Typelizer.Generator.Routes do
     method = entry.verb |> to_string()
     doc = "  /** #{String.upcase(method)} #{entry.path} */\n"
     result = ~s|): RouteDefinition<"#{method}"> => ({|
+    required = Enum.reject(entry.params, & &1.default?)
 
     signature =
       case entry.params do
@@ -154,63 +172,87 @@ defmodule Typelizer.Generator.Routes do
 
         params ->
           "  #{property(entry.action)}: (\n" <>
-            params_arg(params) <>
+            params_arg(params, required) <>
             "    options?: RouteOptions,\n" <>
             "  " <> result <> "\n"
       end
 
-    args = if entry.params == [], do: "{}", else: "params"
-    url = "    url: buildUrl(#{TS.literal(entry.path)}, #{args}, options),"
-
-    url =
-      if String.length(url) <= TS.width(),
-        do: url,
-        else:
-          "    url: buildUrl(\n      #{TS.literal(entry.path)},\n      #{args},\n      options,\n    ),"
-
     doc <>
       signature <>
-      url <>
+      url_line(entry, required) <>
       "\n    method: #{TS.literal(method)},\n" <>
       "  }),\n"
   end
 
+  # The arguments of buildUrl. When every param has a default, `params` may be left
+  # out. When the one required param is not the first param of the path, buildUrl is
+  # told which param a single value is for.
+  defp url_line(entry, required) do
+    args =
+      case {entry.params, required} do
+        {[], _} ->
+          ["{}", "options"]
+
+        {_, []} ->
+          ["params ?? {}", "options"]
+
+        {[first | _], [%{name: name}]} when first.name != name ->
+          ["params", "options", TS.literal(name)]
+
+        _ ->
+          ["params", "options"]
+      end
+
+    args = [TS.literal(entry.path) | args]
+    line = "    url: buildUrl(#{Enum.join(args, ", ")}),"
+
+    if String.length(line) <= TS.width(),
+      do: line,
+      else: "    url: buildUrl(\n" <> Enum.map_join(args, &"      #{&1},\n") <> "    ),"
+  end
+
   # `params: <type>,` on one line when it fits, broken the way Prettier does otherwise.
-  defp params_arg(params) do
-    line = "    params: #{params_type(params)},"
+  defp params_arg(params, required) do
+    {head, members} = params_type(params, required)
+    line = "    #{head} #{Enum.join(members, " | ")},"
+
+    next_line = "      #{Enum.join(members, " | ")},"
 
     cond do
       String.length(line) <= TS.width() ->
         line <> "\n"
 
-      match?([_], params) ->
-        [%{key: key, glob?: glob?}] = params
+      match?([_, _ | _], members) and String.length(next_line) <= TS.width() ->
+        "    #{head}\n" <> next_line <> "\n"
 
-        members = [
-          "{ #{TS.property_key(key)}: #{value_type(glob?)} }"
-          | String.split(value_type(glob?), " | ")
-        ]
-
-        ("    params:\n" <> Enum.map_join(members, fn member -> "      | #{member}\n" end))
+      match?([_, _ | _], members) ->
+        ("    #{head}\n" <> Enum.map_join(members, fn member -> "      | #{member}\n" end))
         |> String.replace_suffix("\n", ",\n")
 
       true ->
-        "    params: {\n" <>
-          Enum.map_join(params, &"      #{TS.property_key(&1.key)}: #{value_type(&1.glob?)};\n") <>
+        "    #{head} {\n" <>
+          Enum.map_join(params, &"      #{param_property(&1)};\n") <>
           "    },\n"
     end
   end
 
   defp property(action), do: TS.property_key(action)
 
-  defp params_type([%{key: key, glob?: glob?}]) do
-    value = value_type(glob?)
-    "{ #{TS.property_key(key)}: #{value} } | #{value}"
+  # `params:` (or `params?:` when every param has a default) and the members of its
+  # type: the object form, plus the bare value when exactly one param is required.
+  defp params_type(params, required) do
+    object = "{ " <> Enum.map_join(params, "; ", &param_property/1) <> " }"
+
+    case required do
+      [] -> {"params?:", [object]}
+      [%{glob?: glob?}] -> {"params:", [object | String.split(value_type(glob?), " | ")]}
+      _ -> {"params:", [object]}
+    end
   end
 
-  defp params_type(params) do
-    "{ " <>
-      Enum.map_join(params, "; ", &"#{TS.property_key(&1.key)}: #{value_type(&1.glob?)}") <> " }"
+  defp param_property(param) do
+    mark = if param.default?, do: "?", else: ""
+    "#{TS.property_key(param.key)}#{mark}: #{value_type(param.glob?)}"
   end
 
   defp value_type(true), do: "string | string[]"
@@ -223,8 +265,8 @@ defmodule Typelizer.Generator.Routes do
       Enum.join(
         [
           if(groups != [], do: TS.export_list("export", groups)),
-          ~s(export { buildUrl, setRoutesBaseUrl } from "./runtime";),
-          ~s(export type { Method, RouteDefinition, RouteOptions } from "./runtime";)
+          ~s(export {\n  addUrlDefault,\n  buildUrl,\n  setRoutesBaseUrl,\n  setUrlDefaults,\n} from "./runtime";),
+          ~s(export type {\n  Method,\n  RouteDefinition,\n  RouteOptions,\n  UrlDefaults,\n} from "./runtime";)
         ]
         |> Enum.reject(&is_nil/1),
         "\n"
@@ -259,7 +301,10 @@ defmodule Typelizer.Generator.Routes do
 
       type ParamValue = string | number | string[];
 
+      export type UrlDefaults = Record<string, unknown>;
+
       let routesBaseUrl = "";
+      let urlDefaults: UrlDefaults | (() => UrlDefaults) = {};
 
       /**
        * Prefixes every generated URL with an origin, for example
@@ -269,17 +314,43 @@ defmodule Typelizer.Generator.Routes do
         routesBaseUrl = url.replace(/\\/+$/, "");
       }
 
+      /**
+       * Sets values for path params that many routes share, such as a locale. Pass a
+       * function to read the current values on every call. A param given to a helper
+       * wins over its default.
+       */
+      export function setUrlDefaults(
+        defaults: UrlDefaults | (() => UrlDefaults),
+      ): void {
+        urlDefaults = defaults;
+      }
+
+      /** Adds one URL default and keeps the others. */
+      export function addUrlDefault(key: string, value: unknown): void {
+        const current = urlDefaults;
+        urlDefaults =
+          typeof current === "function"
+            ? () => ({ ...current(), [key]: value })
+            : { ...current, [key]: value };
+      }
+
       const PARAM = /([:*])([A-Za-z_][A-Za-z0-9_]*)/g;
 
-      /** Builds a URL from a path template such as "/tasks/:id". */
+      /**
+       * Builds a URL from a path template such as "/tasks/:id". A single value (not an
+       * object) is the value of `scalarParam`, or of the first param of the template.
+       */
       export function buildUrl(
         template: string,
         params: Record<string, unknown> | ParamValue,
         options?: RouteOptions,
+        scalarParam?: string,
       ): string {
-        const values = toParamObject(template, params);
+        const values = toParamObject(template, params, scalarParam);
+        const defaults =
+          typeof urlDefaults === "function" ? urlDefaults() : urlDefaults;
         const path = template.replace(PARAM, (_match, kind: string, name: string) =>
-          encodeParam(kind === "*", paramValue(values, name, template)),
+          encodeParam(kind === "*", paramValue(values, defaults, name, template)),
         );
         const query = options?.query ? encodeQuery(options.query) : "";
 
@@ -294,28 +365,39 @@ defmodule Typelizer.Generator.Routes do
       function toParamObject(
         template: string,
         params: Record<string, unknown> | ParamValue,
+        scalarParam?: string,
       ): Record<string, unknown> {
         if (typeof params === "object" && !Array.isArray(params)) return params;
-        const name = new RegExp(PARAM.source).exec(template)?.[2];
+        const name = scalarParam ?? new RegExp(PARAM.source).exec(template)?.[2];
         return name ? { [name]: params } : {};
       }
 
       // Path params accept the snake_case name of the router and its camelCase form.
+      // A given value wins over a URL default.
       function paramValue(
         values: Record<string, unknown>,
+        defaults: UrlDefaults,
         name: string,
         template: string,
       ): unknown {
         const camel = name.replace(/_([a-z0-9])/g, (_m, c: string) =>
           c.toUpperCase(),
         );
-        const value = name in values ? values[name] : values[camel];
+        const value = lookup(values, name, camel) ?? lookup(defaults, name, camel);
         if (value === undefined || value === null) {
           throw new Error(
             `typelizer: missing route param "${camel}" for ${template}`,
           );
         }
         return value;
+      }
+
+      function lookup(
+        values: Record<string, unknown>,
+        name: string,
+        camel: string,
+      ): unknown {
+        return name in values ? values[name] : values[camel];
       }
 
       function encodeParam(glob: boolean, value: unknown): string {
