@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-30
+
+Backward compatible with 0.1. After the upgrade, run `mix typelizer.gen`: the route
+runtime (`routes/runtime.ts`) and `routes/index.ts` get the new exports, so
+`mix typelizer.check` reports them until they are regenerated. Other generated files
+do not change unless you use the new features.
+
 ### Added
 
 - URL defaults for route helpers: `setUrlDefaults()` (an object, or a function read
@@ -72,5 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nested and data keys (and `preserve_case/1`), and how to serialize custom Ecto
   types whose values are structs.
 
-[Unreleased]: https://github.com/toptive/typelizer-ex/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/toptive/typelizer-ex/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/toptive/typelizer-ex/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/toptive/typelizer-ex/releases/tag/v0.1.0

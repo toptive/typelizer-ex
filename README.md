@@ -22,7 +22,7 @@ you:
 ```elixir
 def deps do
   [
-    {:typelizer, "~> 0.1"}
+    {:typelizer, "~> 0.2"}
   ]
 end
 ```
