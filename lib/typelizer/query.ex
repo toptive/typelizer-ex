@@ -113,11 +113,13 @@ defmodule Typelizer.Query do
     # Live actions are not functions: a LiveView is not checked.
     live_view? = Phoenix.LiveView in List.wrap(Module.get_attribute(env.module, :behaviour))
 
-    for {action, _props, line} <- queries,
-        not live_view? and not Module.defines?(env.module, {action, 2}) do
+    # Any arity counts: a controller may override action/2 to pass extra arguments.
+    actions = for {name, _arity} <- Module.definitions_in(env.module, :def), do: name
+
+    for {action, _props, line} <- queries, not live_view? and action not in actions do
       compile_error!(
         %{env | line: line},
-        "query #{inspect(action)}: #{inspect(env.module)} has no action #{action}/2"
+        "query #{inspect(action)}: #{inspect(env.module)} has no public function #{action}"
       )
     end
 

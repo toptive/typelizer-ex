@@ -70,8 +70,25 @@ defmodule Typelizer.QueryTest do
     assert compile_error("query :index, user: MyAppWeb.UserSerializer") =~ "cannot be serializers"
 
     message = compile_error("query :indx, []")
-    assert message =~ "has no action indx/2"
+    assert message =~ "has no public function indx"
     assert message =~ "query.ex:4"
+  end
+
+  test "actions of any arity are accepted" do
+    [{module, _}] =
+      Code.compile_string("""
+      defmodule Typelizer.QueryTest.WithUser do
+        use Phoenix.Controller, formats: [:json]
+        use Typelizer.Query
+
+        query :index, page: {:optional, :integer}
+
+        def action(conn, _opts), do: apply(__MODULE__, action_name(conn), [conn, conn.params, nil])
+        def index(conn, _params, _current_user), do: conn
+      end
+      """)
+
+    assert module.__typelizer_queries__()[:index]
   end
 
   test "a LiveView may declare its live actions" do
