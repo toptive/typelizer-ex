@@ -120,14 +120,14 @@ Compiles the project, writes every generated file and deletes stale generated
 files. It prints a summary:
 
 ```text
-typelizer: wrote 14 files, removed 1 stale file.
+typelizer: wrote 3 files, 11 unchanged, removed 1 stale file.
 ```
 
 A file is written only when its content changed.
 
 ### `mix typelizer.check`
 
-Generates everything into a temporary directory and compares the result with
+Generates everything in memory and compares the result with
 the output directories. It reports changed, missing and stale files with a
 short diff, and exits with status 1 on drift. On success it prints:
 

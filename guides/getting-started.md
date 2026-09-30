@@ -91,7 +91,7 @@ mix typelizer.gen
 ```
 
 ```text
-typelizer: wrote 14 files, removed 0 stale files.
+typelizer: wrote 14 files, 0 unchanged, removed 0 stale files.
 ```
 
 The serializer above becomes `assets/js/generated/serializers/Task.ts`:
@@ -146,7 +146,7 @@ export default function Index({ tasks, filters }: TasksIndexProps) {
 mix typelizer.check
 ```
 
-The task generates everything into a temporary directory and compares it with
+The task generates everything in memory and compares it with
 the files on disk. When a serializer, a schema, a route or a page declaration
 changed and the committed TypeScript did not follow, it prints the difference
 and exits with status 1:

@@ -23,5 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Typelizer.InertiaPage.ValidateProps`: a plug that raises
   `Typelizer.InertiaPage.PropsError` in dev and test when a rendered page sends
   missing or undeclared props (`config :typelizer, validate_inertia_props: true`).
+- `mix typelizer.gen`: writes one TypeScript interface per serializer, the route
+  helpers and the Inertia page props (`<component>.props.ts`, `SharedProps`, a
+  `Pages` map). Deterministic output; stale generated files are removed; files
+  without the typelizer header are never touched. Optional Prettier pass.
+- `mix typelizer.check`: exits with status 1 and a short diff when the committed
+  TypeScript is out of date.
+- Column nullability from PostgreSQL `information_schema` when `repo:` is set.
 - User guides for the public API: getting started, serializers, route helpers,
   Inertia page props and configuration.
