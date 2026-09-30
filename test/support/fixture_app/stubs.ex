@@ -1,7 +1,6 @@
 # Controllers and plugs that the fixture router points to. They do nothing.
 for module <- [
       MyAppWeb.PageController,
-      MyAppWeb.TaskController,
       MyAppWeb.CommentController,
       MyAppWeb.FileController,
       MyAppWeb.Api.V1.ProjectController,

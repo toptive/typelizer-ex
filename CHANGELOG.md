@@ -18,5 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Route helper generation from the Phoenix router: one typed helper per route
   (`routes.task.show(id)` → `{ url, method }`), typed path params, query strings,
   anchors, `setRoutesBaseUrl()` and path filters.
+- `Typelizer.InertiaPage`: `page/2` declares the props of an Inertia page and
+  `shared/1` the props shared by every page.
+- `Typelizer.InertiaPage.ValidateProps`: a plug that raises
+  `Typelizer.InertiaPage.PropsError` in dev and test when a rendered page sends
+  missing or undeclared props (`config :typelizer, validate_inertia_props: true`).
 - User guides for the public API: getting started, serializers, route helpers,
   Inertia page props and configuration.
