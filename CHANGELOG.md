@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   route helper through a generated `TaskIndexQuery` type. `RouteOptions` becomes
   `RouteOptions<Q>`; its default keeps the 0.1 type.
   ([#2](https://github.com/toptive/typelizer-ex/issues/2))
+- `Typelizer.Envelope`: `wrap/2`, `paginated/2` and `cursor_paginated/2` build
+  `{ data, meta }` values; the type specs `{:envelope, spec}`,
+  `{:envelope, spec, meta_spec}`, `{:paginated, item}` and `{:cursor_paginated, item}`
+  generate `Envelope<T, M>`, `Paginated<T>` and `CursorPaginated<T>` from a shared
+  `Envelope.ts`, which is written only when a spec uses it.
+  ([#3](https://github.com/toptive/typelizer-ex/issues/3))
 
 ## [0.1.0] - 2026-09-30
 

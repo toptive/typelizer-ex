@@ -48,6 +48,9 @@ end
 - `{:optional, spec}` makes the key optional (`stats?: …`). Use it for props
   that are not always sent, such as deferred props (`inertia_defer/1`).
 - A serializer module as a type (or inside `{:list, _}`) imports its interface.
+- `{:paginated, Serializer}`, `{:cursor_paginated, Serializer}` and
+  `{:envelope, spec}` type props built with `Typelizer.Envelope` (see
+  [Envelopes and pagination](serializers.md#envelopes-and-pagination)).
 - An invalid type spec is a compile error.
 - You can declare pages in any module of your app, not only in controllers.
   A component declared twice makes `mix typelizer.gen` fail.

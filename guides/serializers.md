@@ -214,6 +214,10 @@ Type specs are used by `type:` and by Inertia page props.
 | `{:intersection, [spec, …]}` | `A & B` |
 | `{:ts, "raw TypeScript"}` | the text as written |
 | `{:ts, "raw TypeScript", [Serializer, …]}` | the text as written, with imports for the named serializers |
+| `{:envelope, spec}` | `Envelope<T>` |
+| `{:envelope, spec, meta_spec}` | `Envelope<T, M>` |
+| `{:paginated, item_spec}` | `Paginated<T>` |
+| `{:cursor_paginated, item_spec}` | `CursorPaginated<T>` |
 | a serializer module | its interface (imported) |
 
 An invalid type spec is a compile error. Inside a list, a union, an intersection
@@ -237,6 +241,77 @@ The serializer does not change values typed `{:union, …}`, `{:intersection, �
 defp subject(%{subject: %MyApp.Accounts.User{} = user}), do: MyAppWeb.UserSerializer.serialize(user)
 defp subject(%{subject: project}), do: MyAppWeb.ProjectSerializer.serialize(project)
 ```
+
+## Envelopes and pagination
+
+APIs often wrap data in an envelope, `{ "data": …, "meta": … }`, and paginated
+lists add paging metadata. `Typelizer.Envelope` builds these values, and four type
+specs describe them:
+
+```elixir
+json(conn, Typelizer.Envelope.wrap(MyAppWeb.TaskSerializer.serialize_many(tasks)))
+
+json(conn, Typelizer.Envelope.paginated(
+  MyAppWeb.TaskSerializer.serialize_many(page.entries),
+  page: page.page_number, page_size: page.page_size, total: page.total_entries
+))
+
+json(conn, Typelizer.Envelope.cursor_paginated(
+  MyAppWeb.TaskSerializer.serialize_many(entries),
+  next_cursor: next, previous_cursor: previous
+))
+```
+
+```elixir
+page "tasks/index", props: [tasks: {:paginated, MyAppWeb.TaskSerializer}]
+
+attribute :recent,
+  type: {:envelope, {:list, MyAppWeb.CommentSerializer}, {:object, generated_at: :utc_datetime}},
+  value: &recent_comments/1
+```
+
+When a serializer or a page uses one of these specs, `mix typelizer.gen` writes
+`Envelope.ts` in the serializer directory (and `index.ts` exports its types):
+
+```ts
+export interface Envelope<T, M = Record<string, unknown>> {
+  data: T;
+  meta?: M;
+}
+
+export interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface Paginated<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
+export interface CursorMeta {
+  nextCursor: string | null;
+  previousCursor: string | null;
+}
+
+export interface CursorPaginated<T> {
+  data: T[];
+  meta: CursorMeta;
+}
+```
+
+- The data is not changed: serialize it first, as above. Values typed with these
+  specs pass through the serializer unchanged.
+- The meta keys follow the key transform, at every level (`page_size` →
+  `pageSize`). `paginated/2` needs `page:` (from 1), `page_size:` and `total:`, and
+  computes `totalPages`.
+- For a pagination library, pass its numbers: for Scrivener, `page.page_number`,
+  `page.page_size` and `page.total_entries`; for Flop, `meta.current_page`,
+  `meta.page_size` and `meta.total_count`.
+- A serializer named `Envelope`, `Paginated`, `CursorPaginated`, `PaginationMeta`
+  or `CursorMeta` fails the generation when the envelope types are used.
 
 ## Nullability
 

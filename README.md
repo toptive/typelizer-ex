@@ -11,6 +11,8 @@ you:
   become literal unions.
 - **Typed route helpers** generated from your Phoenix router, with URL defaults
   and typed query params.
+- **Envelope and pagination helpers** (`Envelope<T>`, `Paginated<T>`) for JSON
+  APIs and Inertia props.
 - **Typed page props for Inertia.js**, with a runtime check in dev and test.
 - **`mix typelizer.gen`** to write the files and **`mix typelizer.check`** to
   fail on drift in CI and in git hooks.
