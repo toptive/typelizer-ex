@@ -35,6 +35,13 @@ defmodule MyAppWeb.TaskController do
 
   page "tasks/show", props: [task: MyAppWeb.TaskSerializer, can_edit: :boolean]
 
+  page "tasks/archive",
+    props: [
+      tasks: {:paginated, MyAppWeb.TaskSerializer},
+      feed: {:cursor_paginated, MyAppWeb.CommentSerializer},
+      summary: {:envelope, :string}
+    ]
+
   page "tasks/new",
     name: "NewTaskProps",
     props: [

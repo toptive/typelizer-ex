@@ -19,9 +19,12 @@ defmodule Typelizer.TypeScriptTest do
   end
 
   test "the golden files pass tsc in strict mode", %{tmp_dir: tmp_dir, tsc: tsc} do
+    File.write!(Path.join(tmp_dir, "envelope_values.ts"), envelope_values())
+
     args =
       @strict ++
-        ~w(--noEmit --module esnext --moduleResolution bundler --verbatimModuleSyntax check.ts)
+        ~w(--noEmit --module esnext --moduleResolution bundler --verbatimModuleSyntax check.ts
+           envelope_values.ts)
 
     {output, status} = System.cmd(tsc, args, cd: tmp_dir, stderr_to_stdout: true)
     assert status == 0, output
@@ -101,4 +104,25 @@ defmodule Typelizer.TypeScriptTest do
                ~s(typelizer: missing route param "memberId" for /api/v1/projects/:project_id/members/:member_id)
            }
   end
+
+  # The values that Typelizer.Envelope builds, typed with the generated types: tsc
+  # fails when the runtime helpers and the types disagree.
+  defp envelope_values do
+    user =
+      MyAppWeb.UserSerializer.serialize(%{id: "u1", name: "Ana", role: :admin, nickname: nil})
+
+    entries = [%{"id" => 1}]
+
+    """
+    import type { CursorPaginated, Envelope, Paginated, User } from "./serializers";
+
+    export const paginated: Paginated<{ id: number }> = #{json(Typelizer.Envelope.paginated(entries, page: 1, page_size: 20, total: 41))};
+    export const emptyPage: Paginated<{ id: number }> = #{json(Typelizer.Envelope.paginated([], page: 1, page_size: 20, total: 0))};
+    export const cursor: CursorPaginated<{ id: number }> = #{json(Typelizer.Envelope.cursor_paginated(entries, next_cursor: "abc"))};
+    export const wrapped: Envelope<User[], { generatedAt: string }> = #{json(Typelizer.Envelope.wrap([user], generated_at: "2026-09-30T10:00:00Z"))};
+    export const bare: Envelope<number[]> = #{json(Typelizer.Envelope.wrap([1, 2]))};
+    """
+  end
+
+  defp json(value), do: Jason.encode!(value)
 end

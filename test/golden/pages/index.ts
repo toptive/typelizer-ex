@@ -3,6 +3,7 @@
 import type { SharedProps } from "./shared.props";
 import type { DashboardProps } from "./dashboard.props";
 import type { SettingsProfileEditProps } from "./settings/profile-edit.props";
+import type { TasksArchiveProps } from "./tasks/archive.props";
 import type { TasksIndexProps } from "./tasks/index.props";
 import type { NewTaskProps } from "./tasks/new.props";
 import type { TasksShowProps } from "./tasks/show.props";
@@ -11,6 +12,7 @@ export type {
   SharedProps,
   DashboardProps,
   SettingsProfileEditProps,
+  TasksArchiveProps,
   TasksIndexProps,
   NewTaskProps,
   TasksShowProps,
@@ -19,6 +21,7 @@ export type {
 export interface Pages {
   dashboard: DashboardProps;
   "settings/profile-edit": SettingsProfileEditProps;
+  "tasks/archive": TasksArchiveProps;
   "tasks/index": TasksIndexProps;
   "tasks/new": NewTaskProps;
   "tasks/show": TasksShowProps;

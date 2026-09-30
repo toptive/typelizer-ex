@@ -2,7 +2,7 @@ defmodule Typelizer.Generator do
   @moduledoc false
   # Builds every generated file in memory. `Typelizer.Output` writes or compares them.
 
-  alias Typelizer.{Config, Discovery, Nullability}
+  alias Typelizer.{Config, Discovery, Nullability, TypeSpec}
   alias Typelizer.Generator.{Pages, Routes, Serializers}
 
   @type output :: %{kind: atom(), dir: String.t(), files: %{String.t() => String.t()}}
@@ -27,7 +27,10 @@ defmodule Typelizer.Generator do
         %{
           kind: :serializers,
           dir: serializers_dir,
-          files: Serializers.files(serializers, names, nullable_fun(config, serializers))
+          files:
+            Serializers.files(serializers, names, nullable_fun(config, serializers),
+              envelope: if(envelope?(serializers, page_modules), do: config.key_transform)
+            )
         },
       router &&
         %{
@@ -43,6 +46,24 @@ defmodule Typelizer.Generator do
         }
     ]
     |> Enum.filter(& &1)
+  end
+
+  # Envelope.ts is generated only when a serializer field or an Inertia prop uses an
+  # envelope type, so apps that do not use them get the same files as before.
+  defp envelope?(serializers, page_modules) do
+    field_specs =
+      for module <- serializers, field <- module.__typelizer__(:fields), do: field.spec
+
+    prop_specs =
+      for module <- page_modules,
+          props <- [
+            module.__typelizer_shared__() || []
+            | Enum.map(module.__typelizer_pages__(), & &1.props)
+          ],
+          {_name, _key, spec, _optional} <- props,
+          do: spec
+
+    Enum.any?(field_specs ++ prop_specs, &(TypeSpec.envelopes(&1) != []))
   end
 
   defp nullable_fun(config, serializers) do

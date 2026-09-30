@@ -88,6 +88,10 @@ defmodule MyAppWeb.StatsSerializer do
     type: {:nullable, {:intersection, [MyAppWeb.UserSerializer, {:object, admin: :boolean}]}}
 
   attribute :history, type: {:list, {:union, [:string, {:enum, [1, 2]}]}}
+
+  attribute :latest_users,
+    type: {:envelope, {:list, MyAppWeb.UserSerializer}, {:object, generated_at: :utc_datetime}}
+
   attribute :owner, type: {:nullable, MyAppWeb.UserSerializer}
 end
 

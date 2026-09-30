@@ -13,6 +13,7 @@ defmodule Typelizer.TypeSpec do
   #   {:list, t} | {:record, t} | {:nullable, t}
   #   {:object, [prop]}               prop = {name, key, t, optional?}
   #   {:union, [t]} | {:intersection, [t]}
+  #   {:envelope, t, t | nil} | {:paginated, t} | {:cursor_paginated, t}
   #   {:serializer, module}
   #   {:ts, String.t(), [module]}      raw TypeScript and the serializers it names
 
@@ -35,6 +36,9 @@ defmodule Typelizer.TypeSpec do
           | {:nullable, t()}
           | {:object, [prop()]}
           | {:serializer, module()}
+          | {:envelope, t(), t() | nil}
+          | {:paginated, t()}
+          | {:cursor_paginated, t()}
           | {:union, [t()]}
           | {:intersection, [t()]}
           | {:ts, String.t(), [module()]}
@@ -119,6 +123,20 @@ defmodule Typelizer.TypeSpec do
     else
       {:error, "{:ts, text, serializers} takes a list of the serializer modules the text names"}
     end
+  end
+
+  def normalize({:envelope, data}, ctx) do
+    with {:ok, data} <- normalize(data, ctx), do: {:ok, {:envelope, data, nil}}
+  end
+
+  def normalize({:envelope, data, meta}, ctx) do
+    with {:ok, data} <- normalize(data, ctx), {:ok, meta} <- normalize(meta, ctx) do
+      {:ok, {:envelope, data, meta}}
+    end
+  end
+
+  def normalize({kind, item}, ctx) when kind in [:paginated, :cursor_paginated] do
+    with {:ok, item} <- normalize(item, ctx), do: {:ok, {kind, item}}
   end
 
   def normalize({kind, specs}, ctx) when kind in [:union, :intersection] and is_list(specs) do
@@ -220,11 +238,34 @@ defmodule Typelizer.TypeSpec do
     do: Enum.flat_map(props, fn {_, _, s, _} -> serializers(s) end)
 
   def serializers({:ts, _raw, modules}), do: modules
+  def serializers({:envelope, data, nil}), do: serializers(data)
+  def serializers({:envelope, data, meta}), do: serializers(data) ++ serializers(meta)
+
+  def serializers({kind, item}) when kind in [:paginated, :cursor_paginated],
+    do: serializers(item)
 
   def serializers({kind, specs}) when kind in [:union, :intersection],
     do: Enum.flat_map(specs, &serializers/1)
 
   def serializers(_spec), do: []
+
+  @doc """
+  The generic envelope types (`"Envelope"`, `"Paginated"`, `"CursorPaginated"`) that a
+  spec uses.
+  """
+  @spec envelopes(t()) :: [String.t()]
+  def envelopes({:envelope, data, meta}),
+    do: ["Envelope" | envelopes(data)] ++ if(meta, do: envelopes(meta), else: [])
+
+  def envelopes({:paginated, item}), do: ["Paginated" | envelopes(item)]
+  def envelopes({:cursor_paginated, item}), do: ["CursorPaginated" | envelopes(item)]
+  def envelopes({kind, inner}) when kind in [:list, :record, :nullable], do: envelopes(inner)
+
+  def envelopes({kind, specs}) when kind in [:union, :intersection],
+    do: Enum.flat_map(specs, &envelopes/1)
+
+  def envelopes({:object, props}), do: Enum.flat_map(props, fn {_, _, s, _} -> envelopes(s) end)
+  def envelopes(_spec), do: []
 
   @doc """
   True when the runtime encoder leaves values of this spec unchanged.
@@ -236,6 +277,10 @@ defmodule Typelizer.TypeSpec do
   # serializer itself).
   def passthrough?({:ts, _raw, _modules}), do: true
   def passthrough?({kind, _specs}) when kind in [:union, :intersection], do: true
+
+  # Envelopes hold data that is already serialized (see Typelizer.Envelope).
+  def passthrough?({:envelope, _data, _meta}), do: true
+  def passthrough?({kind, _item}) when kind in [:paginated, :cursor_paginated], do: true
 
   def passthrough?({kind, inner}) when kind in [:list, :record, :nullable],
     do: passthrough?(inner)
@@ -255,7 +300,8 @@ defmodule Typelizer.TypeSpec do
   defp hint do
     "Use a primitive (:string, :integer, :float, :boolean, :decimal, :date, :utc_datetime, " <>
       ":map, :any, :unknown), a serializer module, or {:list, t}, {:map, t}, {:enum, values}, " <>
-      "{:nullable, t}, {:object, [key: t]}, {:union, [t, ...]}, {:intersection, [t, ...]} " <>
+      "{:nullable, t}, {:object, [key: t]}, {:union, [t, ...]}, {:intersection, [t, ...]}, " <>
+      "{:envelope, t}, {:envelope, t, meta}, {:paginated, t}, {:cursor_paginated, t} " <>
       "or {:ts, \"raw TypeScript\"}"
   end
 end

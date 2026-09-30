@@ -116,22 +116,21 @@ defmodule Typelizer.Generator.Pages do
   end
 
   defp serializer_imports(props, name_of, dir, serializers_dir) do
-    names =
-      props
-      |> Enum.flat_map(fn {_name, _key, spec, _optional} -> TypeSpec.serializers(spec) end)
-      |> Enum.uniq()
-      |> Enum.map(name_of)
-      |> Enum.sort()
+    specs = Enum.map(props, fn {_name, _key, spec, _optional} -> spec end)
 
-    if names != [] and is_nil(serializers_dir) do
+    if is_nil(serializers_dir) and
+         Enum.any?(specs, &(TypeSpec.serializers(&1) != [] or TypeSpec.envelopes(&1) != [])) do
       raise GenerationError,
-            "Inertia props refer to serializers, but config :typelizer, output: [serializers: nil] " <>
-              "turns the serializer output off"
+            "Inertia props refer to serializers or envelope types, but config :typelizer, " <>
+              "output: [serializers: nil] turns the serializer output off"
     end
 
-    Enum.map(names, fn name ->
-      ~s(import type { #{name} } from "#{TS.relative(dir, Path.join(serializers_dir, name))}";)
-    end)
+    Serializers.import_lines(
+      specs,
+      name_of,
+      nil,
+      &TS.relative(dir, Path.join(serializers_dir, &1))
+    )
   end
 
   defp index_file(pages) do

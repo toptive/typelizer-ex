@@ -54,6 +54,16 @@ defmodule Typelizer.TS do
   def type({:enum, values}, _name_of, _level), do: Enum.map_join(values, " | ", &literal/1)
   def type({:ts, raw, _modules}, _name_of, _level), do: raw
 
+  def type({:envelope, data, nil}, name_of, level), do: "Envelope<#{type(data, name_of, level)}>"
+
+  def type({:envelope, data, meta}, name_of, level),
+    do: "Envelope<#{type(data, name_of, level)}, #{inline(meta, name_of, level)}>"
+
+  def type({:paginated, item}, name_of, level), do: "Paginated<#{type(item, name_of, level)}>"
+
+  def type({:cursor_paginated, item}, name_of, level),
+    do: "CursorPaginated<#{type(item, name_of, level)}>"
+
   def type({:union, specs}, name_of, level),
     do: Enum.map_join(specs, " | ", &member(&1, name_of, level, [:intersection]))
 
@@ -71,6 +81,21 @@ defmodule Typelizer.TS do
 
   def type({:object, props}, name_of, level) do
     "{\n" <> props(props, name_of, level + 1) <> indent(level) <> "}"
+  end
+
+  # A flat object inside a generic argument stays on one line, as Prettier keeps it.
+  defp inline({:object, props}, name_of, level) do
+    if Enum.any?(props, fn {_, _, spec, _} -> match?({:object, _}, spec) end) do
+      type({:object, props}, name_of, level)
+    else
+      "{ " <> Enum.map_join(props, "; ", &inline_prop(&1, name_of, level)) <> " }"
+    end
+  end
+
+  defp inline(spec, name_of, level), do: type(spec, name_of, level)
+
+  defp inline_prop({_name, key, spec, optional}, name_of, level) do
+    property_key(key) <> if(optional, do: "?", else: "") <> ": " <> type(spec, name_of, level)
   end
 
   @doc """
@@ -174,17 +199,18 @@ defmodule Typelizer.TS do
   defp drop_common(from, to), do: {from, to}
 
   @doc """
-  An export statement with a list of names, on one line when it fits in 80
+  An import or export statement with a list of names, on one line when it fits in 80
   columns, one name per line otherwise: `export { a, b };`.
   """
-  @spec export_list(String.t(), [String.t()]) :: String.t()
-  def export_list(keyword, names) do
-    line = "#{keyword} { #{Enum.join(names, ", ")} };"
+  @spec export_list(String.t(), [String.t()], String.t() | nil) :: String.t()
+  def export_list(keyword, names, from \\ nil) do
+    tail = if from, do: " from #{literal(from)};", else: ";"
+    line = "#{keyword} { #{Enum.join(names, ", ")} }" <> tail
 
     if String.length(line) <= 80 do
       line
     else
-      "#{keyword} {\n" <> Enum.map_join(names, &"  #{&1},\n") <> "};"
+      "#{keyword} {\n" <> Enum.map_join(names, &"  #{&1},\n") <> "}" <> tail
     end
   end
 

@@ -4,6 +4,13 @@ export type { AdminTask } from "./AdminTask";
 export type { Category } from "./Category";
 export type { Comment } from "./Comment";
 export type { DashboardStats } from "./DashboardStats";
+export type {
+  CursorMeta,
+  CursorPaginated,
+  Envelope,
+  Paginated,
+  PaginationMeta,
+} from "./Envelope";
 export type { Project } from "./Project";
 export type { Task } from "./Task";
 export type { User } from "./User";

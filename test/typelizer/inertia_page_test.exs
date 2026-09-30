@@ -207,6 +207,7 @@ defmodule Typelizer.InertiaPageTest do
   describe "declarations" do
     test "are compiled into __typelizer_pages__/0 and __typelizer_shared__/0" do
       assert [
+               %{component: "tasks/archive", name: "TasksArchiveProps"},
                %{
                  component: "tasks/index",
                  name: "TasksIndexProps",

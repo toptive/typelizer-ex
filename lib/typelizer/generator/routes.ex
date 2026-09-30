@@ -366,9 +366,7 @@ defmodule Typelizer.Generator.Routes do
               do: query_type_name(group, e.action)
             ),
           names != [],
-          do:
-            TS.export_list("export type", names)
-            |> String.replace_suffix(";", ~s( from "./#{group}";))
+          do: TS.export_list("export type", names, "./#{group}")
 
     exports =
       Enum.join(

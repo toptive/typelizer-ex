@@ -2,8 +2,16 @@
 // It uses the generated types and prints the results of the route helpers as JSON.
 import { addUrlDefault, routes, setRoutesBaseUrl, setUrlDefaults } from "./routes";
 import type { UrlDefaults } from "./routes";
-import type { Comment, DashboardStats, Project, Task, User } from "./serializers";
-import type { Pages, SharedProps, TasksIndexProps } from "./pages";
+import type {
+  Comment,
+  CursorMeta,
+  DashboardStats,
+  PaginationMeta,
+  Project,
+  Task,
+  User,
+} from "./serializers";
+import type { Pages, SharedProps, TasksArchiveProps, TasksIndexProps } from "./pages";
 
 const task: Pick<Task, "id" | "status" | "labels" | "assignee"> = {
   id: "t1",
@@ -22,6 +30,10 @@ const subject: DashboardStats["subject"] = { id: "u1", name: "Ana", role: "membe
 const card: DashboardStats["ownerCard"] = { id: "u1", name: "Ana", nickname: null, online: true };
 const mixed: DashboardStats["mixed"] = ["a", 1];
 const history: DashboardStats["history"] = ["a", 2];
+const pageMeta: PaginationMeta = { page: 1, pageSize: 20, total: 0, totalPages: 0 };
+const cursorMeta: CursorMeta = { nextCursor: null, previousCursor: "a" };
+const archive: Pick<TasksArchiveProps, "summary"> = { summary: { data: "ok" } };
+const latest: DashboardStats["latestUsers"] = { data: [], meta: { generatedAt: "2026-09-30" } };
 
 const results: Record<string, unknown> = {
   show: routes.task.show(42),
@@ -114,4 +126,5 @@ try {
 }
 
 void [task, comment, link, window, user, shared, props, page, subject, card, mixed, history];
+void [pageMeta, cursorMeta, archive, latest];
 console.log(JSON.stringify(results));

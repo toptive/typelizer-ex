@@ -166,7 +166,8 @@ defmodule Typelizer.SerializerTest do
         subject: %{"id" => "p1"},
         owner_card: %{"id" => "u1", "online" => true},
         reviewer: nil,
-        history: ["a", 2]
+        history: ["a", 2],
+        latest_users: Typelizer.Envelope.wrap([], generated_at: "2026-09-30T10:00:00Z")
       }
 
       assert StatsSerializer.serialize(stats) == %{
@@ -181,7 +182,11 @@ defmodule Typelizer.SerializerTest do
                "subject" => %{"id" => "p1"},
                "ownerCard" => %{"id" => "u1", "online" => true},
                "reviewer" => nil,
-               "history" => ["a", 2]
+               "history" => ["a", 2],
+               "latestUsers" => %{
+                 "data" => [],
+                 "meta" => %{"generatedAt" => "2026-09-30T10:00:00Z"}
+               }
              }
 
       assert %{"window" => %{"label" => "Q3"}} =

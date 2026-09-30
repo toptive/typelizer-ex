@@ -90,7 +90,7 @@ defmodule Typelizer.MixProject do
       ],
       groups_for_modules: [
         DSL: [Typelizer.Serializer, Typelizer.InertiaPage, Typelizer.Query],
-        Runtime: [Typelizer.InertiaPage.ValidateProps],
+        Runtime: [Typelizer.Envelope, Typelizer.InertiaPage.ValidateProps],
         Errors: [Typelizer.SerializationError, Typelizer.InertiaPage.PropsError]
       ]
     ]
