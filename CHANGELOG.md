@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TypeScript is out of date.
 - Column nullability from PostgreSQL `information_schema` when `repo:` is set.
 - User guides for the public API: getting started, serializers, route helpers,
-  Inertia page props and configuration.
+  Inertia page props and configuration. They explain how `camelize_props` changes
+  nested and data keys (and `preserve_case/1`), and how to serialize custom Ecto
+  types whose values are structs.
 
 [0.1.0]: https://github.com/toptive/typelizer-ex/releases/tag/v0.1.0

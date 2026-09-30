@@ -159,8 +159,33 @@ sends:
 config :inertia, camelize_props: true
 ```
 
-Or call `camelize_props/1` in the controller. Serializer output already has
-camelCase keys; camelizing it again does not change it.
+Or call `camelize_props/1` in the controller.
+
+`camelize_props` changes **every** key, at every depth, not only the prop names:
+
+- Serializer output with the default `:camel` key transform does not change:
+  its keys are already camelCase.
+- A serializer with `key_transform: :snake` arrives camelCased, so its TypeScript
+  interface (snake_case) is wrong. With `camelize_props`, keep the `:camel` key
+  transform for serializers that you send to pages.
+- Keys that are data, not field names, change too: a map of counts
+  `%{"in_progress" => 2}` arrives as `{ inProgress: 2 }`, and a translation
+  catalogue key `"auth.session.tab_link"` arrives as `"auth.session.tabLink"`.
+  `Inertia.Controller.preserve_case/1` keeps one key as written, so wrap each
+  data key:
+
+```elixir
+catalogue = Map.new(catalogue, fn {key, text} -> {preserve_case(key), text} end)
+
+conn
+|> assign_prop(:translations, catalogue)   # "auth.session.tab_link" stays as is
+|> assign_prop(:task_counts, counts)       # "in_progress" becomes "inProgress"
+```
+
+Wrapping the prop name (`assign_prop(conn, preserve_case(:translations), …)`)
+keeps only that name: the keys inside the value are still camelized. A wrapped
+prop name also arrives as written (`tr_data`, not `trData`), which does not
+match the camelCase key of the page declaration.
 
 ## Validate rendered props (dev and test)
 

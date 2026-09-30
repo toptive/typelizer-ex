@@ -140,10 +140,27 @@ For a schema field without `type:`, Typelizer reads the Ecto type:
 | `{:array, Ecto.Enum}` | `("a" \| "b")[]` |
 | `embeds_one` | a nested object with every field of the embedded schema |
 | `embeds_many` | an array of that nested object |
-| a custom `Ecto.Type` | inferred from its `type/0` |
+| a custom `Ecto.Type` | inferred from its `type/0` (see below) |
 
 A type that Typelizer cannot map is a compile error that asks you to add
 `type:`.
+
+### Custom types with struct values
+
+For a custom `Ecto.Type`, Typelizer reads `type/0`: the type of the database
+column. When the value in the struct is a struct of its own (for example a
+`Money` type stored as a string or an integer), that type is wrong for JSON:
+the TypeScript type says `string`, and the struct passes through unchanged, so
+the JSON encoder fails or sends a different shape. Declare the type and convert
+the value yourself:
+
+```elixir
+attribute :price, type: :string, value: fn product -> Money.to_string(product.price) end
+
+attribute :price,
+  type: {:object, amount: :integer, currency: :string},
+  value: fn product -> %{amount: product.price.amount, currency: product.price.currency} end
+```
 
 ## Type specs
 
