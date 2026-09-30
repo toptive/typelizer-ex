@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generate `Envelope<T, M>`, `Paginated<T>` and `CursorPaginated<T>` from a shared
   `Envelope.ts`, which is written only when a spec uses it.
   ([#3](https://github.com/toptive/typelizer-ex/issues/3))
+- `config :typelizer, validate_inertia_props: :values` also checks each rendered
+  Inertia prop value against its declared type in dev and test (types, enums,
+  nullability, serializer fields and nested serializers, envelopes) and reports
+  each mismatch with a path such as `tasks[3].status`. `true` keeps the key-only
+  check. ([#4](https://github.com/toptive/typelizer-ex/issues/4))
 
 ## [0.1.0] - 2026-09-30
 

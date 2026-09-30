@@ -30,7 +30,7 @@ config :typelizer,
   ],
 
   # Inertia (runtime validation, dev and test only).
-  validate_inertia_props: false,
+  validate_inertia_props: false,   # true (keys) or :values (keys and values)
   undeclared_inertia_pages: :raise, # :raise or :ignore
 
   # Formatting.
@@ -104,7 +104,8 @@ generated helpers. See [URL defaults](routes.md#url-defaults).
 
 ### `validate_inertia_props`, `undeclared_inertia_pages`
 
-Turn on the `Typelizer.InertiaPage.ValidateProps` plug in dev and test, and
+Turn on the `Typelizer.InertiaPage.ValidateProps` plug in dev and test (`true`
+checks the prop keys, `:values` also checks each value against its type), and
 choose what it does with a page that has no declaration. See
 [Validate rendered props](inertia.md#validate-rendered-props-dev-and-test).
 These keys are read at runtime.

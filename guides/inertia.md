@@ -233,6 +233,36 @@ Hint: the keys are not camelCase. Set `config :inertia, camelize_props: true` or
 With `validate_inertia_props: false` (the default, and what you want in
 production), the plug does nothing.
 
-The plug checks only the keys. The TypeScript compiler checks the rest: your
-serializers produce the values, and they have the same types as the generated
-interfaces.
+### Check the values too
+
+By default the plug checks only the keys. Set `:values` to check each rendered
+value against its declared type as well:
+
+```elixir
+# config/dev.exs and config/test.exs
+config :typelizer, validate_inertia_props: :values
+```
+
+```text
+** (Typelizer.InertiaPage.PropsError) Inertia page "tasks/index" does not match its declaration in MyAppWeb.TaskController:
+  tasks[3].status: expected "todo" | "doing" | "done", got "archived"
+  tasks[0]: missing key dueOn (got due_on)
+  nextCursor: expected string | null, got 42
+```
+
+- Values are checked as they will be encoded to JSON: an atom counts as a string,
+  a `Date` or `DateTime` as an ISO-8601 string, a `Decimal` as a string.
+- Serializer props are checked field by field, nested serializers included: the
+  keys (including `optional:` and `if:` keys, which may be left out), their
+  nullability and their types. A raw struct where a serializer map is expected is
+  an error: serialize it first.
+- `{:object, …}`, lists, records, enums, unions and the envelope types are
+  checked. `:any`, `:unknown`, `{:ts, …}` and `{:intersection, …}` are not.
+- Nullability that comes from the database (`repo:`) is not known at runtime,
+  so those fields accept `nil`.
+- Only the props that are present are checked (deferred, partial and once props
+  included).
+- The message lists at most 20 problems per page.
+
+The check walks every value on every render, so keep it to dev and test.
+`validate_inertia_props: true` keeps the key-only check.
