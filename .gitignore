@@ -1,0 +1,12 @@
+/_build/
+/cover/
+/deps/
+/doc/
+/.fetch
+erl_crash.dump
+*.ez
+typelizer-*.tar
+/tmp/
+/priv/plts/
+.elixir_ls/
+.DS_Store
