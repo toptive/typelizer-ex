@@ -106,12 +106,54 @@ The default is `exclude: ["/dev"]`: Phoenix puts its development-only routes
 environment. Keep them out, or `mix typelizer.check` gives different results in
 dev and in CI. When you set `exclude`, it replaces the default.
 
+## URL defaults
+
+Some path params are the same in almost every URL: a locale, the current
+organization. List them in the config:
+
+```elixir
+scope "/:locale", MyAppWeb do
+  get "/articles/:slug", ArticleController, :show
+end
+
+config :typelizer, routes: [defaults: [:locale]]
+```
+
+Then set their values once in the frontend:
+
+```ts
+import { addUrlDefault, routes, setUrlDefaults } from "@/generated/routes";
+
+setUrlDefaults({ locale: "en" });
+routes.article.show("intro");                      // "/en/articles/intro"
+routes.article.show({ slug: "intro", locale: "es" }); // a given value wins: "/es/articles/intro"
+
+// A function is called on every URL, so it always reads the current value.
+setUrlDefaults(() => ({ locale: i18n.language }));
+
+// Add one default and keep the others.
+addUrlDefault("organizationId", 7);
+```
+
+- A param in `defaults` is optional in the helper types
+  (`{ locale?: string | number; slug: string | number }`).
+- When one param is still required, the helper takes its value directly
+  (`show("intro")`).
+- When every param has a default, the params argument is optional, and the
+  options come second: `routes.home.index({}, { query: { q: "x" } })`.
+- A default key may be written in snake_case or camelCase.
+- A missing value (no param and no default) throws
+  `typelizer: missing route param "locale" for /:locale/articles/:slug`.
+- `setUrlDefaults()` and `addUrlDefault()` work for any path param, also one that
+  is not in `defaults`; only the TypeScript types differ.
+
 ## Generated files
 
 The default directory is `assets/js/generated/routes`:
 
-- `runtime.ts`: the `Method`, `RouteDefinition<M>` and `RouteOptions` types,
-  `setRoutesBaseUrl()` and `buildUrl()`.
+- `runtime.ts`: the `Method`, `RouteDefinition<M>`, `RouteOptions` and
+  `UrlDefaults` types, `setRoutesBaseUrl()`, `setUrlDefaults()`, `addUrlDefault()`
+  and `buildUrl()`.
 - `<group>.ts`: one file per group, for example `task.ts` exports `task`.
 - `index.ts`: re-exports each group and the runtime API, and exports `routes`,
   one object with every group.
@@ -149,8 +191,18 @@ import { task } from "./task";
 import { taskComment } from "./taskComment";
 
 export { page, task, taskComment };
-export { buildUrl, setRoutesBaseUrl } from "./runtime";
-export type { Method, RouteDefinition, RouteOptions } from "./runtime";
+export {
+  addUrlDefault,
+  buildUrl,
+  setRoutesBaseUrl,
+  setUrlDefaults,
+} from "./runtime";
+export type {
+  Method,
+  RouteDefinition,
+  RouteOptions,
+  UrlDefaults,
+} from "./runtime";
 
 export const routes = {
   page,

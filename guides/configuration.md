@@ -25,7 +25,8 @@ config :typelizer,
   # Route helpers.
   routes: [
     include: [],                   # path prefixes or regexes; [] keeps every route
-    exclude: ["/dev"]              # path prefixes or regexes
+    exclude: ["/dev"],             # path prefixes or regexes
+    defaults: []                   # path params with a URL default, for example [:locale]
   ],
 
   # Inertia (runtime validation, dev and test only).
@@ -96,6 +97,10 @@ learn which columns are `NOT NULL`. See
 `include` and `exclude` filter the routes by path. An entry is a path prefix
 (a string that matches whole segments) or a `Regex`. See
 [Filters](routes.md#filters).
+
+`defaults` lists the path params that get their value from `setUrlDefaults()` in
+the frontend, as written in the router (`[:locale]`). They are optional in the
+generated helpers. See [URL defaults](routes.md#url-defaults).
 
 ### `validate_inertia_props`, `undeclared_inertia_pages`
 

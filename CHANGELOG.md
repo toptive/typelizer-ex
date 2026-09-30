@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- URL defaults for route helpers: `setUrlDefaults()` (an object, or a function read
+  on every call) and `addUrlDefault()` in the generated runtime, and
+  `config :typelizer, routes: [defaults: [:locale]]` to make those params optional
+  in the helper types. A route whose only required param is not the first one
+  accepts its value directly (`routes.article.show("intro")`).
+  ([#1](https://github.com/toptive/typelizer-ex/issues/1))
+
 ## [0.1.0] - 2026-09-30
 
 ### Added
