@@ -3,10 +3,12 @@ defmodule Typelizer.InertiaPage.Validation do
   # Compares the top-level keys of a rendered Inertia page with its declaration.
 
   alias Typelizer.Discovery
+  alias Typelizer.InertiaPage.ValueCheck
 
   @default_shared ["errors", "flash"]
 
   @type rendered :: %{
+          optional(:values) => %{String.t() => term()},
           component: String.t(),
           keys: [String.t()],
           partial?: boolean(),
@@ -73,6 +75,7 @@ defmodule Typelizer.InertiaPage.Validation do
         list("not declared", extra)
       ]
       |> Enum.reject(&is_nil/1)
+      |> Enum.concat(value_problems(rendered, props))
 
     case problems do
       [] ->
@@ -85,6 +88,23 @@ defmodule Typelizer.InertiaPage.Validation do
            Enum.join(problems, "\n") <> hints(missing, extra, deferred_required)}
     end
   end
+
+  # With `validate_inertia_props: :values`, the values of the present props are
+  # checked against their specs too.
+  defp value_problems(%{values: values}, props) when is_map(values) do
+    declared = Enum.map(props, fn {_name, key, spec, _optional} -> {key, spec} end)
+
+    defaults =
+      for key <- @default_shared,
+          not List.keymember?(declared, key, 0),
+          do: {key, {:record, :string}}
+
+    values
+    |> ValueCheck.errors(declared ++ defaults)
+    |> Enum.map(&("  " <> &1))
+  end
+
+  defp value_problems(_rendered, _props), do: []
 
   defp list(_label, []), do: nil
   defp list(label, keys), do: "  #{label}: #{Enum.join(Enum.sort(keys), ", ")}"

@@ -49,6 +49,14 @@ defmodule MyAppWeb.TaskController do
       project: {:nullable, MyAppWeb.ProjectSerializer}
     ]
 
+  def index(conn, %{"bad" => "values"}) do
+    conn
+    |> assign_prop(:tasks, [%{"id" => "t1", "status" => "archived"}])
+    |> assign_prop(:filters, "x")
+    |> assign_prop(:next_cursor, nil)
+    |> render_inertia("tasks/index")
+  end
+
   def index(conn, params) do
     conn
     |> assign_prop(:tasks, [])
@@ -62,8 +70,17 @@ defmodule MyAppWeb.TaskController do
   end
 
   def show(conn, _params) do
+    task = %MyApp.Tasks.Task{
+      id: "t1",
+      title: "Ship",
+      status: :todo,
+      inserted_at: ~U[2026-09-30 10:00:00Z],
+      assignee: nil,
+      comments: []
+    }
+
     conn
-    |> assign_prop(:task, %{"id" => "t1"})
+    |> assign_prop(:task, MyAppWeb.TaskSerializer.serialize(task))
     |> assign_prop(:can_edit, true)
     |> render_inertia("tasks/show")
   end

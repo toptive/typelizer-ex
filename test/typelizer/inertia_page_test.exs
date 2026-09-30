@@ -199,6 +199,33 @@ defmodule Typelizer.InertiaPageTest do
     assert_raise PropsError, ~r/has no declaration/, fn -> send_resp(conn, 200, "") end
   end
 
+  describe "validate_inertia_props: :values" do
+    setup do
+      Application.put_env(:typelizer, :validate_inertia_props, :values)
+    end
+
+    test "serializer output renders" do
+      assert request(MyAppWeb.TaskController, :show).status == 200
+    end
+
+    test "wrong values raise with a path" do
+      message =
+        assert_raise(PropsError, fn ->
+          request(MyAppWeb.TaskController, :index, %{"bad" => "values"})
+        end)
+        |> Exception.message()
+
+      assert message =~ ~s(  tasks[0]: missing key title)
+      assert message =~ ~s(  tasks[0].status: expected "todo" | "doing" | "done", got "archived")
+      assert message =~ ~s(  filters: expected Record<string, unknown>, got "x")
+    end
+
+    test "with validate_inertia_props: true, values are not checked" do
+      Application.put_env(:typelizer, :validate_inertia_props, true)
+      assert request(MyAppWeb.TaskController, :index, %{"bad" => "values"}).status == 200
+    end
+  end
+
   test "the plug does nothing when validation is off" do
     Application.put_env(:typelizer, :validate_inertia_props, false)
     assert request(MyAppWeb.TaskController, :edit).status == 200

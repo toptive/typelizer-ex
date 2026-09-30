@@ -26,6 +26,11 @@ if Code.ensure_loaded?(Plug.Conn) do
     On a partial reload only undeclared props are reported. The error is a
     `Typelizer.InertiaPage.PropsError`, raised before the response is sent.
 
+    With `validate_inertia_props: :values`, the plug also checks each present value
+    against its declared type spec (types, enums, nullability, serializer fields,
+    nested serializers) and reports each mismatch with a path such as
+    `tasks[3].status`.
+
     With `validate_inertia_props: false` (the default) the plug does nothing. Both
     config keys are read at runtime.
     """
@@ -39,7 +44,7 @@ if Code.ensure_loaded?(Plug.Conn) do
 
     @impl Plug
     def call(conn, _opts) do
-      if Application.get_env(:typelizer, :validate_inertia_props, false) do
+      if Application.get_env(:typelizer, :validate_inertia_props, false) in [true, :values] do
         Plug.Conn.register_before_send(conn, &validate/1)
       else
         conn
@@ -56,6 +61,11 @@ if Code.ensure_loaded?(Plug.Conn) do
         deferred: page |> Map.get(:deferred_props, %{}) |> Map.values() |> List.flatten(),
         once: page |> Map.get(:once_props, %{}) |> Map.values() |> Enum.map(& &1["prop"])
       }
+
+      rendered =
+        if Application.get_env(:typelizer, :validate_inertia_props) == :values,
+          do: Map.put(rendered, :values, Map.new(page.props, fn {k, v} -> {to_string(k), v} end)),
+          else: rendered
 
       undeclared = Application.get_env(:typelizer, :undeclared_inertia_pages, :raise)
 
