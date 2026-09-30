@@ -113,7 +113,8 @@ MyAppWeb.TaskSerializer.serialize(nil)
   - `Decimal` → a string (`"12.50"`), or a float with `decimal_type: :number`.
   - `Ecto.Enum` atoms → strings.
   - Embeds → maps with transformed keys.
-  - Values typed `:map`, `:any` or `:unknown` pass through unchanged.
+  - Values typed `:map`, `:any`, `:unknown`, `{:union, …}`, `{:intersection, …}` or
+    `{:ts, …}` pass through unchanged.
 - The options go down to nested serializers.
 - An association that is not preloaded raises `Typelizer.SerializationError`
   with the serializer, the field and a hint to preload it.
@@ -163,10 +164,33 @@ Type specs are used by `type:` and by Inertia page props.
 | `{:nullable, spec}` | `T \| null` |
 | `{:object, [key: spec, …]}` | `{ key: T; … }` (keys transformed) |
 | `{:optional, spec}` | inside `{:object, …}` and page props only: `key?: T` |
+| `{:union, [spec, …]}` | `A \| B` |
+| `{:intersection, [spec, …]}` | `A & B` |
 | `{:ts, "raw TypeScript"}` | the text as written |
+| `{:ts, "raw TypeScript", [Serializer, …]}` | the text as written, with imports for the named serializers |
 | a serializer module | its interface (imported) |
 
-An invalid type spec is a compile error.
+An invalid type spec is a compile error. Inside a list, a union, an intersection
+or raw TypeScript with operators gets parentheses: `(A | B)[]`.
+
+```elixir
+attribute :subject,
+  type: {:union, [MyAppWeb.UserSerializer, MyAppWeb.ProjectSerializer]},
+  value: &subject/1
+
+attribute :card,
+  type: {:ts, "Omit<User, \"role\"> & { online: boolean }", [MyAppWeb.UserSerializer]},
+  value: &card/1
+```
+
+The serializer does not change values typed `{:union, …}`, `{:intersection, …}` or
+`{:ts, …}`: it cannot know which member a value is. Return JSON-ready values from
+`value:`, for example by calling the right serializer yourself:
+
+```elixir
+defp subject(%{subject: %MyApp.Accounts.User{} = user}), do: MyAppWeb.UserSerializer.serialize(user)
+defp subject(%{subject: project}), do: MyAppWeb.ProjectSerializer.serialize(project)
+```
 
 ## Nullability
 

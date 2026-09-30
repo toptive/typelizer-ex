@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Ecto.Enum` literal unions and embeds. Keys are camelCase by default
   (`key_transform:`), dates become ISO-8601 strings and decimals strings (or numbers
   with `decimal_type: :number`). Mistakes are compile errors with a hint.
+- Type specs `{:union, [...]}`, `{:intersection, [...]}` and
+  `{:ts, text, [Serializer, ...]}` (raw TypeScript that imports the named serializers).
+  Unions, intersections and raw TypeScript with operators get parentheses inside lists.
 - Route helper generation from the Phoenix router: one typed helper per route
   (`routes.task.show(id)` → `{ url, method }`), typed path params, query strings,
   anchors, `setRoutesBaseUrl()` and path filters.

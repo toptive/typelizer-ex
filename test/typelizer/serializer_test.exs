@@ -122,7 +122,12 @@ defmodule Typelizer.SerializerTest do
         window: %{from: ~D[2026-09-01], to: ~D[2026-09-30], label: nil},
         trend: [:up, :flat],
         raw: [["a", 1]],
-        owner: @user
+        owner: @user,
+        mixed: ["a", 1],
+        subject: %{"id" => "p1"},
+        owner_card: %{"id" => "u1", "online" => true},
+        reviewer: nil,
+        history: ["a", 2]
       }
 
       assert StatsSerializer.serialize(stats) == %{
@@ -132,7 +137,12 @@ defmodule Typelizer.SerializerTest do
                "window" => %{"from" => "2026-09-01", "to" => "2026-09-30"},
                "trend" => ["up", "flat"],
                "raw" => [["a", 1]],
-               "owner" => %{"id" => "u1", "name" => "Ana", "role" => "admin", "nickname" => nil}
+               "owner" => %{"id" => "u1", "name" => "Ana", "role" => "admin", "nickname" => nil},
+               "mixed" => ["a", 1],
+               "subject" => %{"id" => "p1"},
+               "ownerCard" => %{"id" => "u1", "online" => true},
+               "reviewer" => nil,
+               "history" => ["a", 2]
              }
 
       assert %{"window" => %{"label" => "Q3"}} =
@@ -304,6 +314,18 @@ defmodule Typelizer.SerializerTest do
 
       assert compile_error("attribute :x, type: {:optional, :string}, value: & &1", "") =~
                "{:nullable, spec}"
+
+      assert compile_error("attribute :x, type: {:union, [:string]}, value: & &1", "") =~
+               "at least two"
+
+      assert compile_error(
+               "attribute :x, type: {:intersection, [:string, :nope]}, value: & &1",
+               ""
+             ) =~
+               "unknown type :nope"
+
+      assert compile_error(~s(attribute :x, type: {:ts, "A", [:a]}, value: & &1), "") =~
+               "serializer modules"
     end
 
     test "an unknown option" do

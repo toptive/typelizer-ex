@@ -12,8 +12,9 @@ defmodule Typelizer.TypeSpec do
   #   {:enum, [String.t() | integer()]}
   #   {:list, t} | {:record, t} | {:nullable, t}
   #   {:object, [prop]}               prop = {name, key, t, optional?}
+  #   {:union, [t]} | {:intersection, [t]}
   #   {:serializer, module}
-  #   {:ts, String.t()}
+  #   {:ts, String.t(), [module]}      raw TypeScript and the serializers it names
 
   alias Typelizer.Naming
 
@@ -34,7 +35,9 @@ defmodule Typelizer.TypeSpec do
           | {:nullable, t()}
           | {:object, [prop()]}
           | {:serializer, module()}
-          | {:ts, String.t()}
+          | {:union, [t()]}
+          | {:intersection, [t()]}
+          | {:ts, String.t(), [module()]}
 
   @string [:string, :binary_id, :uuid, :binary]
   @number [:integer, :float, :number, :id]
@@ -108,7 +111,23 @@ defmodule Typelizer.TypeSpec do
     with {:ok, props} <- normalize_props(props, ctx), do: {:ok, {:object, props}}
   end
 
-  def normalize({:ts, raw}, _ctx) when is_binary(raw), do: {:ok, {:ts, raw}}
+  def normalize({:ts, raw}, _ctx) when is_binary(raw), do: {:ok, {:ts, raw, []}}
+
+  def normalize({:ts, raw, modules}, _ctx) when is_binary(raw) and is_list(modules) do
+    if Enum.all?(modules, &(is_atom(&1) and serializer_like?(&1))) do
+      {:ok, {:ts, raw, modules}}
+    else
+      {:error, "{:ts, text, serializers} takes a list of the serializer modules the text names"}
+    end
+  end
+
+  def normalize({kind, specs}, ctx) when kind in [:union, :intersection] and is_list(specs) do
+    if length(specs) >= 2 do
+      with {:ok, specs} <- normalize_all(specs, ctx, []), do: {:ok, {kind, specs}}
+    else
+      {:error, "{#{inspect(kind)}, specs} takes a list of at least two type specs"}
+    end
+  end
 
   def normalize({:optional, _inner}, _ctx) do
     {:error,
@@ -125,6 +144,12 @@ defmodule Typelizer.TypeSpec do
   end
 
   def normalize(other, _ctx), do: {:error, "invalid type spec #{inspect(other)}. " <> hint()}
+
+  defp normalize_all([], _ctx, acc), do: {:ok, Enum.reverse(acc)}
+
+  defp normalize_all([spec | rest], ctx, acc) do
+    with {:ok, spec} <- normalize(spec, ctx), do: normalize_all(rest, ctx, [spec | acc])
+  end
 
   @doc false
   @spec normalize_props(term(), ctx()) :: {:ok, [prop()]} | {:error, String.t()}
@@ -194,6 +219,11 @@ defmodule Typelizer.TypeSpec do
   def serializers({:object, props}),
     do: Enum.flat_map(props, fn {_, _, s, _} -> serializers(s) end)
 
+  def serializers({:ts, _raw, modules}), do: modules
+
+  def serializers({kind, specs}) when kind in [:union, :intersection],
+    do: Enum.flat_map(specs, &serializers/1)
+
   def serializers(_spec), do: []
 
   @doc """
@@ -201,7 +231,11 @@ defmodule Typelizer.TypeSpec do
   """
   @spec passthrough?(t()) :: boolean()
   def passthrough?(spec) when spec in [:string, :number, :boolean, :map, :any, :unknown], do: true
-  def passthrough?({:ts, _}), do: true
+  # Unions and raw TypeScript cannot tell the encoder which member a value is: the
+  # value must already be JSON-ready (for example, a `value:` function that calls a
+  # serializer itself).
+  def passthrough?({:ts, _raw, _modules}), do: true
+  def passthrough?({kind, _specs}) when kind in [:union, :intersection], do: true
 
   def passthrough?({kind, inner}) when kind in [:list, :record, :nullable],
     do: passthrough?(inner)
@@ -221,6 +255,7 @@ defmodule Typelizer.TypeSpec do
   defp hint do
     "Use a primitive (:string, :integer, :float, :boolean, :decimal, :date, :utc_datetime, " <>
       ":map, :any, :unknown), a serializer module, or {:list, t}, {:map, t}, {:enum, values}, " <>
-      "{:nullable, t}, {:object, [key: t]} or {:ts, \"raw TypeScript\"}"
+      "{:nullable, t}, {:object, [key: t]}, {:union, [t, ...]}, {:intersection, [t, ...]} " <>
+      "or {:ts, \"raw TypeScript\"}"
   end
 end

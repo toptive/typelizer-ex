@@ -63,6 +63,16 @@ defmodule MyAppWeb.StatsSerializer do
 
   attribute :trend, type: {:list, {:enum, [:up, :down, :flat]}}
   attribute :raw, type: {:ts, "Array<[string, number]>"}
+  attribute :mixed, type: {:list, {:ts, "string | number"}}
+  attribute :subject, type: {:union, [MyAppWeb.UserSerializer, MyAppWeb.ProjectSerializer]}
+
+  attribute :owner_card,
+    type: {:ts, "Omit<User, \"role\"> & { online: boolean }", [MyAppWeb.UserSerializer]}
+
+  attribute :reviewer,
+    type: {:nullable, {:intersection, [MyAppWeb.UserSerializer, {:object, admin: :boolean}]}}
+
+  attribute :history, type: {:list, {:union, [:string, {:enum, [1, 2]}]}}
   attribute :owner, type: {:nullable, MyAppWeb.UserSerializer}
 end
 

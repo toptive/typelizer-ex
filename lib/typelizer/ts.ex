@@ -52,10 +52,19 @@ defmodule Typelizer.TS do
   def type({:decimal, :string}, _name_of, _level), do: "string"
   def type({:decimal, :number}, _name_of, _level), do: "number"
   def type({:enum, values}, _name_of, _level), do: Enum.map_join(values, " | ", &literal/1)
-  def type({:ts, raw}, _name_of, _level), do: raw
+  def type({:ts, raw, _modules}, _name_of, _level), do: raw
+
+  def type({:union, specs}, name_of, level),
+    do: Enum.map_join(specs, " | ", &member(&1, name_of, level, [:intersection]))
+
+  def type({:intersection, specs}, name_of, level),
+    do: Enum.map_join(specs, " & ", &member(&1, name_of, level, [:union]))
+
   def type({:serializer, module}, name_of, _level), do: name_of.(module)
 
-  def type({:nullable, spec}, name_of, level), do: type(spec, name_of, level) <> " | null"
+  def type({:nullable, spec}, name_of, level),
+    do: member(spec, name_of, level, [:intersection]) <> " | null"
+
   def type({:record, spec}, name_of, level), do: "Record<string, #{type(spec, name_of, level)}>"
   def type({:list, spec}, name_of, level), do: element(spec, name_of, level) <> "[]"
   def type({:object, []}, _name_of, _level), do: "Record<string, never>"
@@ -96,13 +105,29 @@ defmodule Typelizer.TS do
   defp union_members({:nullable, {:list, {:object, _}} = spec}, name_of, level),
     do: [type(spec, name_of, level), "null"]
 
+  defp union_members({:nullable, {:intersection, _} = spec}, name_of, level),
+    do: [member(spec, name_of, level, [:intersection]), "null"]
+
   defp union_members({:nullable, {:enum, values}}, _name_of, _level),
     do: Enum.map(values, &literal/1) ++ ["null"]
 
   defp union_members({:enum, [_, _ | _] = values}, _name_of, _level),
     do: Enum.map(values, &literal/1)
 
+  defp union_members({:union, specs}, name_of, level),
+    do: single_line_members(specs, name_of, level)
+
+  defp union_members({:nullable, {:union, specs}}, name_of, level) do
+    with members when is_list(members) <- single_line_members(specs, name_of, level),
+         do: members ++ ["null"]
+  end
+
   defp union_members(_spec, _name_of, _level), do: nil
+
+  defp single_line_members(specs, name_of, level) do
+    members = Enum.map(specs, &member(&1, name_of, level, [:intersection]))
+    if Enum.any?(members, &String.contains?(&1, "\n")), do: nil, else: members
+  end
 
   defp prop_parts({_name, key, spec, optional}), do: {key, spec, optional}
   defp prop_parts({key, spec, optional}), do: {key, spec, optional}
@@ -163,6 +188,25 @@ defmodule Typelizer.TS do
     end
   end
 
+  # A member of a union or an intersection gets parentheses when it is itself a
+  # union (inside an intersection) or holds raw TypeScript with operators.
+  defp member(spec, name_of, level, wrap) do
+    rendered = type(spec, name_of, level)
+
+    parens? =
+      case spec do
+        {kind, _} when kind in [:union, :intersection] -> kind in wrap
+        {:nullable, _} -> :union in wrap
+        {:enum, [_, _ | _]} -> :union in wrap
+        {:ts, raw, _} -> operators?(raw)
+        _ -> false
+      end
+
+    if parens?, do: "(" <> rendered <> ")", else: rendered
+  end
+
+  defp operators?(raw), do: String.contains?(raw, ["|", "&", "=>", "?", "keyof ", "typeof "])
+
   defp element(spec, name_of, level) do
     rendered = type(spec, name_of, level)
 
@@ -171,6 +215,7 @@ defmodule Typelizer.TS do
 
   defp needs_parens?({:enum, [_, _ | _]}), do: true
   defp needs_parens?({:nullable, _}), do: true
-  defp needs_parens?({:ts, raw}), do: String.contains?(raw, " ")
+  defp needs_parens?({kind, _specs}) when kind in [:union, :intersection], do: true
+  defp needs_parens?({:ts, raw, _modules}), do: operators?(raw)
   defp needs_parens?(_spec), do: false
 end

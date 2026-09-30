@@ -17,6 +17,10 @@ const user: User | null = null;
 const shared: Pick<SharedProps, "locale"> = { locale: "en" };
 const props: Pick<TasksIndexProps, "nextCursor" | "stats"> = { nextCursor: null };
 const page: Pages["tasks/index"]["tasks"] = [];
+const subject: DashboardStats["subject"] = { id: "u1", name: "Ana", role: "member", nickname: null };
+const card: DashboardStats["ownerCard"] = { id: "u1", name: "Ana", nickname: null, online: true };
+const mixed: DashboardStats["mixed"] = ["a", 1];
+const history: DashboardStats["history"] = ["a", 2];
 
 const results: Record<string, unknown> = {
   show: routes.task.show(42),
@@ -44,5 +48,5 @@ try {
   results["missingParam"] = (error as Error).message;
 }
 
-void [task, comment, link, window, user, shared, props, page];
+void [task, comment, link, window, user, shared, props, page, subject, card, mixed, history];
 console.log(JSON.stringify(results));

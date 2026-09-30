@@ -9,7 +9,29 @@ defmodule Typelizer.TSTest do
 
       assert TS.type({:list, {:nullable, :string}}, name_of) == "(string | null)[]"
       assert TS.type({:list, {:enum, ["a"]}}, name_of) == ~s("a"[])
-      assert TS.type({:list, {:ts, "A | B"}}, name_of) == "(A | B)[]"
+      assert TS.type({:list, {:ts, "A | B", []}}, name_of) == "(A | B)[]"
+      assert TS.type({:list, {:ts, "A|B", []}}, name_of) == "(A|B)[]"
+      assert TS.type({:list, {:ts, "A&B", []}}, name_of) == "(A&B)[]"
+
+      assert TS.type({:list, {:ts, "Array<[string, number]>", []}}, name_of) ==
+               "Array<[string, number]>[]"
+
+      assert TS.type({:union, [:string, {:serializer, MyAppWeb.UserSerializer}]}, name_of) ==
+               "string | User"
+
+      assert TS.type({:list, {:union, [:string, :number]}}, name_of) == "(string | number)[]"
+
+      assert TS.type({:intersection, [{:union, [:string, :number]}, {:ts, "A | B", []}]}, name_of) ==
+               "(string | number) & (A | B)"
+
+      assert TS.type(
+               {:union, [{:intersection, [:string, :number]}, {:enum, ["a", "b"]}]},
+               name_of
+             ) ==
+               "(string & number) | \"a\" | \"b\""
+
+      assert TS.type({:intersection, [{:nullable, :string}, {:enum, ["a", "b"]}]}, name_of) ==
+               "(string | null) & (\"a\" | \"b\")"
 
       assert TS.type({:record, {:serializer, MyAppWeb.UserSerializer}}, name_of) ==
                "Record<string, User>"
