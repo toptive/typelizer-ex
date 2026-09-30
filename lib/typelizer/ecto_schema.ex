@@ -22,7 +22,8 @@ defmodule Typelizer.EctoSchema do
     :binary_id => :string,
     :bitstring => :string,
     :map => :map,
-    :any => :any,
+    # Ecto :any holds any term: `unknown` makes TypeScript check it before use.
+    :any => :unknown,
     :date => :temporal,
     :time => :temporal,
     :time_usec => :temporal,

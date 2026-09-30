@@ -133,6 +133,7 @@ For a schema field without `type:`, Typelizer reads the Ecto type:
 | `:decimal` | `string` (`number` with `decimal_type: :number`) |
 | `:date`, `:time`, `:naive_datetime`, `:utc_datetime` (and `_usec`) | `string` |
 | `:map` | `Record<string, unknown>` |
+| `:any` (virtual fields) | `unknown` |
 | `{:map, t}` | `Record<string, T>` |
 | `{:array, t}` | `T[]` |
 | `Ecto.Enum` | a literal union: `"todo" \| "doing" \| "done"` |

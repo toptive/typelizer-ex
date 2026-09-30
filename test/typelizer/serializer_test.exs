@@ -374,6 +374,27 @@ defmodule Typelizer.SerializerTest do
     end
   end
 
+  test "Ecto :any becomes unknown" do
+    defmodule Anything do
+      use Ecto.Schema
+
+      embedded_schema do
+        field(:payload, :any, virtual: true)
+        field(:data, {:map, :any})
+      end
+    end
+
+    [{module, _}] =
+      Code.compile_string("""
+      defmodule Typelizer.SerializerTest.AnythingSerializer do
+        use Typelizer.Serializer, schema: Typelizer.SerializerTest.Anything
+        attributes [:payload, :data]
+      end
+      """)
+
+    assert [%{spec: :unknown}, %{spec: {:record, :unknown}}] = module.__typelizer__(:fields)
+  end
+
   test "a custom Ecto type is inferred from type/0" do
     defmodule Cents do
       use Ecto.Type
