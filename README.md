@@ -9,7 +9,8 @@ you:
   the TypeScript types.
 - **TypeScript interfaces inferred from Ecto schemas**. `Ecto.Enum` fields
   become literal unions.
-- **Typed route helpers** generated from your Phoenix router.
+- **Typed route helpers** generated from your Phoenix router, with URL defaults
+  and typed query params.
 - **Typed page props for Inertia.js**, with a runtime check in dev and test.
 - **`mix typelizer.gen`** to write the files and **`mix typelizer.check`** to
   fail on drift in CI and in git hooks.

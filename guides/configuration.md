@@ -149,6 +149,7 @@ typelizer: the generated TypeScript is up to date.
 - two serializers have the same interface name;
 - two pages declare the same component, or two modules declare `shared`;
 - two routes have the same group and action;
+- a `query` declaration names an action that no route points to;
 - `router: :auto` finds more than one router;
 - `repo:` is set and the database is not reachable;
 - a generated file would overwrite a file without the typelizer header.

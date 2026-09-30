@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the helper types. A route whose only required param is not the first one
   accepts its value directly (`routes.article.show("intro")`).
   ([#1](https://github.com/toptive/typelizer-ex/issues/1))
+- Typed query params: `use Typelizer.Query` and `query :index, page: {:optional,
+  :integer}, ...` in a controller (or a LiveView) type the `query` option of the
+  route helper through a generated `TaskIndexQuery` type. `RouteOptions` becomes
+  `RouteOptions<Q>`; its default keeps the 0.1 type.
+  ([#2](https://github.com/toptive/typelizer-ex/issues/2))
 
 ## [0.1.0] - 2026-09-30
 

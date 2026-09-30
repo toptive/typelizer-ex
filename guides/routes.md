@@ -106,6 +106,68 @@ The default is `exclude: ["/dev"]`: Phoenix puts its development-only routes
 environment. Keep them out, or `mix typelizer.check` gives different results in
 dev and in CI. When you set `exclude`, it replaces the default.
 
+## Typed query params
+
+By default the `query` option takes any object. Declare the query params of an
+action with `Typelizer.Query` to type it:
+
+```elixir
+defmodule MyAppWeb.TaskController do
+  use MyAppWeb, :controller
+  use Typelizer.Query
+
+  query :index,
+    page: {:optional, :integer},
+    status: {:optional, {:enum, [:todo, :doing, :done]}},
+    due_before: {:optional, :date},
+    sort: {:optional, {:list, {:object, field: :string, dir: {:enum, [:asc, :desc]}}}}
+
+  query :show, include: {:list, {:enum, [:comments, :assignee]}}
+
+  def index(conn, params), do: ...
+  def show(conn, params), do: ...
+end
+```
+
+```ts
+routes.task.index({ query: { page: 2, status: "todo" } });   // ok
+routes.task.index({ query: { stauts: "todo" } });            // compile error
+routes.task.index({ query: { due_before: new Date() } });    // ok: sent as ISO-8601
+routes.task.show(42, { query: { include: ["comments"] } });  // `include` is required
+```
+
+The generator writes a named type per action, `TaskIndexQuery`, next to the
+helpers, and `index.ts` exports it:
+
+```ts
+export type TaskIndexQuery = {
+  page?: number;
+  status?: "todo" | "doing" | "done";
+  due_before?: string | Date;
+  sort?: {
+    field: string;
+    dir: "asc" | "desc";
+  }[];
+};
+
+export const task = {
+  index: (options?: RouteOptions<TaskIndexQuery>): RouteDefinition<"get"> => ({
+  // …
+```
+
+- The specs are the [type specs](serializers.md#type-specs) of serializers, without
+  serializer modules. `{:optional, spec}` marks a param that may be left out.
+- Query keys stay as written (snake_case): Phoenix reads them as written. The key
+  transform does not apply.
+- Dates accept a string or a `Date`; decimals accept a string or a number.
+- `query :edit, []` allows no query params at all.
+- Only types are generated. Cast and validate `params` in the controller as usual.
+- An action without a declaration keeps `RouteOptions` (any query).
+- A LiveView can declare the query params of its live actions the same way.
+- Errors: an invalid spec, a declaration twice or an action that the controller
+  does not define is a `CompileError`. A declaration for an action that no route
+  of the router points to fails `mix typelizer.gen`.
+
 ## URL defaults
 
 Some path params are the same in almost every URL: a locale, the current
@@ -151,10 +213,11 @@ addUrlDefault("organizationId", 7);
 
 The default directory is `assets/js/generated/routes`:
 
-- `runtime.ts`: the `Method`, `RouteDefinition<M>`, `RouteOptions` and
+- `runtime.ts`: the `Method`, `RouteDefinition<M>`, `RouteOptions<Q>` and
   `UrlDefaults` types, `setRoutesBaseUrl()`, `setUrlDefaults()`, `addUrlDefault()`
   and `buildUrl()`.
-- `<group>.ts`: one file per group, for example `task.ts` exports `task`.
+- `<group>.ts`: one file per group, for example `task.ts` exports `task` and the
+  query types of its actions.
 - `index.ts`: re-exports each group and the runtime API, and exports `routes`,
   one object with every group.
 
