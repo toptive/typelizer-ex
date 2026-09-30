@@ -132,7 +132,7 @@ end
 ```ts
 routes.task.index({ query: { page: 2, status: "todo" } });   // ok
 routes.task.index({ query: { stauts: "todo" } });            // compile error
-routes.task.index({ query: { due_before: new Date() } });    // ok: sent as ISO-8601
+routes.task.index({ query: { due_before: "2026-09-30" } });  // a date is a string
 routes.task.show(42, { query: { include: ["comments"] } });  // `include` is required
 ```
 
@@ -143,7 +143,7 @@ helpers, and `index.ts` exports it:
 export type TaskIndexQuery = {
   page?: number;
   status?: "todo" | "doing" | "done";
-  due_before?: string | Date;
+  due_before?: string;
   sort?: {
     field: string;
     dir: "asc" | "desc";
@@ -159,7 +159,10 @@ export const task = {
   serializer modules. `{:optional, spec}` marks a param that may be left out.
 - Query keys stay as written (snake_case): Phoenix reads them as written. The key
   transform does not apply.
-- Dates accept a string or a `Date`; decimals accept a string or a number.
+- `:date` and `:time` params are strings (`"2026-09-30"`): a JavaScript `Date`
+  holds an instant, and its ISO-8601 form is in UTC, which gives the day before
+  east of UTC. Datetime params (`:utc_datetime`, `:naive_datetime`) accept a string
+  or a `Date` (sent as ISO-8601 in UTC). Decimals accept a string or a number.
 - `query :edit, []` allows no query params at all.
 - Only types are generated. Cast and validate `params` in the controller as usual.
 - An action without a declaration keeps `RouteOptions` (any query).

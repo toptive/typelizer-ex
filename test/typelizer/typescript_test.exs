@@ -77,7 +77,8 @@ defmodule Typelizer.TypeScriptTest do
              "index" => "/tasks",
              "query" => "/api/v1/projects?page=2&tags[]=a&tags[]=b&filter[status]=todo",
              "typedQuery" =>
-               "/tasks?page=2&status=todo&due_before=2026-09-30T00%3A00%3A00.000Z&min_estimate=1.5" <>
+               "/tasks?page=2&status=todo&due_before=2026-09-30" <>
+                 "&updated_after=2026-09-30T10%3A00%3A00.000Z&min_estimate=1.5" <>
                  "&sort[0][field]=price&sort[0][dir]=asc&filter[owner_id]=7",
              "typedShow" => "/tasks/42?include[]=comments&include[]=assignee",
              "anchor" => "/tasks/42#notes",

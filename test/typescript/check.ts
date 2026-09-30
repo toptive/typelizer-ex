@@ -45,7 +45,8 @@ const results: Record<string, unknown> = {
     query: {
       page: 2,
       status: "todo",
-      due_before: new Date(Date.UTC(2026, 8, 30)),
+      due_before: "2026-09-30",
+      updated_after: new Date(Date.UTC(2026, 8, 30, 10, 0, 0)),
       min_estimate: "1.5",
       sort: [{ field: "price", dir: "asc" }],
       filter: { owner_id: 7 },
@@ -110,6 +111,8 @@ const typeOnly = (): void => {
   routes.localizedPage.index({ query: { q: "x" } });
   // @ts-expect-error: a typo in a typed query param.
   routes.task.index({ query: { stauts: "todo" } });
+  // @ts-expect-error: a date param takes a "YYYY-MM-DD" string, not a Date (time zones).
+  routes.task.index({ query: { due_before: new Date() } });
   // @ts-expect-error: a value outside the enum.
   routes.task.index({ query: { status: "archived" } });
   // @ts-expect-error: a required query param is missing.

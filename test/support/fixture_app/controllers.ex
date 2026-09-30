@@ -17,6 +17,7 @@ defmodule MyAppWeb.TaskController do
     status: {:optional, {:enum, [:todo, :doing, :done]}},
     tags: {:optional, {:list, :string}},
     due_before: {:optional, :date},
+    updated_after: {:optional, :utc_datetime},
     min_estimate: {:optional, :decimal},
     filter: {:optional, {:object, owner_id: :integer, archived: {:optional, :boolean}}},
     sort: {:optional, {:list, {:object, field: :string, dir: {:enum, [:asc, :desc]}}}}

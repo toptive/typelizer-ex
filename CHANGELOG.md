@@ -24,7 +24,8 @@ do not change unless you use the new features.
   ([#1](https://github.com/toptive/typelizer-ex/issues/1))
 - Typed query params: `use Typelizer.Query` and `query :index, page: {:optional,
   :integer}, ...` in a controller (or a LiveView) type the `query` option of the
-  route helper through a generated `TaskIndexQuery` type. `RouteOptions` becomes
+  route helper through a generated `TaskIndexQuery` type. `:date` and `:time` params
+  are strings; datetime params accept a string or a `Date`. `RouteOptions` becomes
   `RouteOptions<Q>`; its default keeps the 0.1 type.
   ([#2](https://github.com/toptive/typelizer-ex/issues/2))
 - `Typelizer.Envelope`: `wrap/2`, `paginated/2` and `cursor_paginated/2` build

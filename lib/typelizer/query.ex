@@ -67,7 +67,9 @@ defmodule Typelizer.Query do
 
     props =
       try do
-        TypeSpec.normalize_props!(params, Module.get_attribute(module, :typelizer_query_ctx))
+        params
+        |> dates_as_strings()
+        |> TypeSpec.normalize_props!(Module.get_attribute(module, :typelizer_query_ctx))
       rescue
         error in ArgumentError ->
           compile_error!(env, "query #{inspect(action)}: " <> error.message)
@@ -83,6 +85,27 @@ defmodule Typelizer.Query do
 
     Module.put_attribute(module, :typelizer_queries, {action, props, env.line})
   end
+
+  # A calendar date or a time of day is a plain string in a query: a JavaScript Date
+  # holds an instant, and its ISO-8601 form is in UTC, which moves the date east of
+  # UTC. Datetimes keep `string | Date`.
+  defp dates_as_strings(spec) when spec in [:date, :time, :time_usec], do: :string
+
+  defp dates_as_strings({tag, inner}) when tag in [:list, :array, :map, :nullable, :optional],
+    do: {tag, dates_as_strings(inner)}
+
+  defp dates_as_strings({tag, specs}) when tag in [:union, :intersection] and is_list(specs),
+    do: {tag, Enum.map(specs, &dates_as_strings/1)}
+
+  defp dates_as_strings({:object, props}), do: {:object, dates_as_strings(props)}
+
+  defp dates_as_strings(props) when is_list(props) do
+    if Keyword.keyword?(props),
+      do: Enum.map(props, fn {key, spec} -> {key, dates_as_strings(spec)} end),
+      else: props
+  end
+
+  defp dates_as_strings(spec), do: spec
 
   @doc false
   defmacro __before_compile__(env) do

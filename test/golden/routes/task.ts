@@ -8,7 +8,8 @@ export type TaskIndexQuery = {
   page?: number;
   status?: "todo" | "doing" | "done";
   tags?: string[];
-  due_before?: string | Date;
+  due_before?: string;
+  updated_after?: string | Date;
   min_estimate?: string | number;
   filter?: {
     owner_id: number;
