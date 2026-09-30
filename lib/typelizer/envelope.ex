@@ -30,17 +30,33 @@ defmodule Typelizer.Envelope do
   Wraps data in an envelope. `meta` is optional; its keys follow the key transform, at
   every level.
 
+  Options:
+
+    * `:key_transform` - `:camel` or `:snake`. Default: `config :typelizer, :key_transform`.
+      Set it to the key transform of the serializer whose `{:envelope, spec, meta_spec}`
+      field holds the value, so the meta keys match its type.
+
       iex> Typelizer.Envelope.wrap([1, 2])
       %{"data" => [1, 2]}
 
       iex> Typelizer.Envelope.wrap([1, 2], %{generated_at: "2026-09-30", source_ids: [3]})
       %{"data" => [1, 2], "meta" => %{"generatedAt" => "2026-09-30", "sourceIds" => [3]}}
+
+      iex> Typelizer.Envelope.wrap([1, 2], [generated_at: "2026-09-30"], key_transform: :snake)
+      %{"data" => [1, 2], "meta" => %{"generated_at" => "2026-09-30"}}
   """
-  @spec wrap(term(), map() | keyword() | nil) :: t()
-  def wrap(data, meta \\ nil)
-  def wrap(data, nil), do: %{"data" => data}
-  def wrap(data, meta) when is_list(meta), do: wrap(data, Map.new(meta))
-  def wrap(data, %{} = meta), do: %{"data" => data, "meta" => transform_keys(meta)}
+  @spec wrap(term(), map() | keyword() | nil, keyword()) :: t()
+  def wrap(data, meta \\ nil, opts \\ [])
+
+  def wrap(data, nil, opts) do
+    _ = key_transform!(opts)
+    %{"data" => data}
+  end
+
+  def wrap(data, meta, opts) when is_list(meta), do: wrap(data, Map.new(meta), opts)
+
+  def wrap(data, %{} = meta, opts),
+    do: %{"data" => data, "meta" => transform_keys(meta, key_transform!(opts))}
 
   @doc """
   Wraps one page of a list with page-based pagination metadata.
@@ -60,11 +76,15 @@ defmodule Typelizer.Envelope do
     page_size = fetch_integer!(opts, :page_size, 1)
     total = fetch_integer!(opts, :total, 0)
 
-    wrap(entries,
-      page: page,
-      page_size: page_size,
-      total: total,
-      total_pages: div(total + page_size - 1, page_size)
+    wrap(
+      entries,
+      [
+        page: page,
+        page_size: page_size,
+        total: total,
+        total_pages: div(total + page_size - 1, page_size)
+      ],
+      []
     )
   end
 
@@ -78,9 +98,13 @@ defmodule Typelizer.Envelope do
   """
   @spec cursor_paginated(list(), keyword() | map()) :: t()
   def cursor_paginated(entries, opts \\ []) when is_list(entries) do
-    wrap(entries,
-      next_cursor: fetch_cursor!(opts, :next_cursor),
-      previous_cursor: fetch_cursor!(opts, :previous_cursor)
+    wrap(
+      entries,
+      [
+        next_cursor: fetch_cursor!(opts, :next_cursor),
+        previous_cursor: fetch_cursor!(opts, :previous_cursor)
+      ],
+      []
     )
   end
 
@@ -106,12 +130,27 @@ defmodule Typelizer.Envelope do
     end
   end
 
-  defp transform_keys(%{__struct__: _} = struct), do: struct
+  defp key_transform!(opts) do
+    case Keyword.validate!(opts, key_transform: @key_transform)[:key_transform] do
+      transform when transform in [:camel, :snake] ->
+        transform
 
-  defp transform_keys(%{} = map) do
-    Map.new(map, fn {key, value} -> {Naming.key(key, @key_transform), transform_keys(value)} end)
+      other ->
+        raise ArgumentError,
+              "Typelizer.Envelope.wrap/3: key_transform: must be :camel or :snake, got: #{inspect(other)}"
+    end
   end
 
-  defp transform_keys(list) when is_list(list), do: Enum.map(list, &transform_keys/1)
-  defp transform_keys(value), do: value
+  defp transform_keys(%{__struct__: _} = struct, _transform), do: struct
+
+  defp transform_keys(%{} = map, transform) do
+    Map.new(map, fn {key, value} ->
+      {Naming.key(key, transform), transform_keys(value, transform)}
+    end)
+  end
+
+  defp transform_keys(list, transform) when is_list(list),
+    do: Enum.map(list, &transform_keys(&1, transform))
+
+  defp transform_keys(value, _transform), do: value
 end

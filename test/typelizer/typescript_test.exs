@@ -4,6 +4,8 @@ defmodule Typelizer.TypeScriptTest do
   #   npm ci --prefix test/typescript
   use ExUnit.Case, async: true
 
+  alias MyApp.Tasks.Task
+  alias MyAppWeb.Admin.TaskSerializer, as: AdminTaskSerializer
   alias Plug.Conn.Query
 
   @moduletag :typescript
@@ -109,19 +111,22 @@ defmodule Typelizer.TypeScriptTest do
   # The values that Typelizer.Envelope builds, typed with the generated types: tsc
   # fails when the runtime helpers and the types disagree.
   defp envelope_values do
+    admin_task = AdminTaskSerializer.serialize(%Task{id: "t1", title: "T"})
+
     user =
       MyAppWeb.UserSerializer.serialize(%{id: "u1", name: "Ana", role: :admin, nickname: nil})
 
     entries = [%{"id" => 1}]
 
     """
-    import type { CursorPaginated, Envelope, Paginated, User } from "./serializers";
+    import type { AdminTask, CursorPaginated, Envelope, Paginated, User } from "./serializers";
 
     export const paginated: Paginated<{ id: number }> = #{json(Typelizer.Envelope.paginated(entries, page: 1, page_size: 20, total: 41))};
     export const emptyPage: Paginated<{ id: number }> = #{json(Typelizer.Envelope.paginated([], page: 1, page_size: 20, total: 0))};
     export const cursor: CursorPaginated<{ id: number }> = #{json(Typelizer.Envelope.cursor_paginated(entries, next_cursor: "abc"))};
     export const wrapped: Envelope<User[], { generatedAt: string }> = #{json(Typelizer.Envelope.wrap([user], generated_at: "2026-09-30T10:00:00Z"))};
     export const bare: Envelope<number[]> = #{json(Typelizer.Envelope.wrap([1, 2]))};
+    export const snake: AdminTask["history_page"] = #{json(admin_task["history_page"])};
     """
   end
 

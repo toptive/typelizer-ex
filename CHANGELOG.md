@@ -28,8 +28,8 @@ do not change unless you use the new features.
   are strings; datetime params accept a string or a `Date`. `RouteOptions` becomes
   `RouteOptions<Q>`; its default keeps the 0.1 type.
   ([#2](https://github.com/toptive/typelizer-ex/issues/2))
-- `Typelizer.Envelope`: `wrap/2`, `paginated/2` and `cursor_paginated/2` build
-  `{ data, meta }` values; the type specs `{:envelope, spec}`,
+- `Typelizer.Envelope`: `wrap/3` (with a `key_transform:` option for snake_case
+  serializers), `paginated/2` and `cursor_paginated/2` build `{ data, meta }` values; the type specs `{:envelope, spec}`,
   `{:envelope, spec, meta_spec}`, `{:paginated, item}` and `{:cursor_paginated, item}`
   generate `Envelope<T, M>`, `Paginated<T>` and `CursorPaginated<T>` from a shared
   `Envelope.ts`, which is written only when a spec uses it.

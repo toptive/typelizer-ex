@@ -305,7 +305,11 @@ export interface CursorPaginated<T> {
 - The data is not changed: serialize it first, as above. Values typed with these
   specs pass through the serializer unchanged.
 - The meta keys follow the key transform, at every level (`page_size` →
-  `pageSize`). `paginated/2` needs `page:` (from 1), `page_size:` and `total:`, and
+  `pageSize`). In a serializer with `key_transform: :snake`, the meta spec of
+  `{:envelope, spec, meta_spec}` has snake_case keys: build the value with
+  `Typelizer.Envelope.wrap(data, meta, key_transform: :snake)`. The `Paginated` and
+  `CursorPaginated` meta types always follow the global key transform, like
+  `paginated/2` and `cursor_paginated/2`. `paginated/2` needs `page:` (from 1), `page_size:` and `total:`, and
   computes `totalPages`.
 - For a pagination library, pass its numbers: for Scrivener, `page.page_number`,
   `page.page_size` and `page.total_entries`; for Flop, `meta.current_page`,

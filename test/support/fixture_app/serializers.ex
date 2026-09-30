@@ -63,6 +63,12 @@ defmodule MyAppWeb.Admin.TaskSerializer do
   use Typelizer.Serializer, schema: MyApp.Tasks.Task, key_transform: :snake
 
   attributes [:id, :title, :assignee_id, :updated_at]
+
+  attribute :history_page,
+    type: {:envelope, {:list, :string}, {:object, page_count: :integer}},
+    value: fn task ->
+      Typelizer.Envelope.wrap([task.title], [page_count: 1], key_transform: :snake)
+    end
 end
 
 defmodule MyAppWeb.StatsSerializer do

@@ -364,7 +364,8 @@ defmodule Typelizer.SerializerTest do
                "id" => "t1",
                "title" => "Ship",
                "assignee_id" => "u1",
-               "updated_at" => "2026-09-30T10:00:00Z"
+               "updated_at" => "2026-09-30T10:00:00Z",
+               "history_page" => %{"data" => ["Ship"], "meta" => %{"page_count" => 1}}
              }
     end
   end

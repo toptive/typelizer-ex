@@ -19,6 +19,19 @@ defmodule Typelizer.EnvelopeTest do
              }
     end
 
+    test "wrap/3 takes the key transform of the serializer; bad options raise" do
+      assert Envelope.wrap([], %{"page_count" => 1}, key_transform: :snake) ==
+               %{"data" => [], "meta" => %{"page_count" => 1}}
+
+      assert_raise ArgumentError, ~r/key_transform: must be :camel or :snake/, fn ->
+        Envelope.wrap([], nil, key_transform: :kebab)
+      end
+
+      assert_raise ArgumentError, ~r/unknown keys \[:keys\]/, fn ->
+        Envelope.wrap([], %{}, keys: :snake)
+      end
+    end
+
     test "paginated/2 computes totalPages and checks its options" do
       assert %{"meta" => %{"totalPages" => 0}} =
                Envelope.paginated([], page: 1, page_size: 10, total: 0)
