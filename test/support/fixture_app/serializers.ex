@@ -91,6 +91,16 @@ defmodule MyAppWeb.StatsSerializer do
   attribute :owner, type: {:nullable, MyAppWeb.UserSerializer}
 end
 
+defmodule MyAppWeb.CategorySerializer do
+  @moduledoc false
+  use Typelizer.Serializer, schema: MyApp.Catalog.Category
+
+  attributes [:id, :name, :opens_at, :rates]
+  has_one :parent, serializer: MyAppWeb.CategorySerializer
+  has_many :children, serializer: MyAppWeb.CategorySerializer
+  has_many :projects, serializer: MyAppWeb.ProjectSerializer
+end
+
 defmodule MyApp.Tasks do
   @moduledoc false
   def overdue?(%{due_on: nil}), do: false

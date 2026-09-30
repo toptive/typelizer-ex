@@ -95,6 +95,18 @@ defmodule Typelizer.NullabilityTest do
     end
   end
 
+  test "only PostgreSQL repos are supported" do
+    defmodule OtherRepo do
+      def __adapter__, do: Ecto.Adapters.MyXQL
+    end
+
+    assert_raise Typelizer.GenerationError, ~r/only PostgreSQL repos are supported/, fn ->
+      Nullability.fetch(OtherRepo, [{nil, "users"}])
+    end
+
+    assert Nullability.fetch(OtherRepo, []) == %{}
+  end
+
   test "a module that is not a repo is a generation error" do
     config = %{Golden.config(System.tmp_dir!()) | columns: nil, repo: String}
 

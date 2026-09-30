@@ -155,6 +155,50 @@ defmodule Typelizer.InertiaPageTest do
     assert request(MyAppWeb.DashboardController, :show).status == 200
   end
 
+  test "a once prop that the client already has may be left out" do
+    [{module, _}] =
+      Code.compile_string("""
+      defmodule Typelizer.InertiaPageTest.OnceController do
+        use Phoenix.Controller, formats: [:json]
+        use Typelizer.InertiaPage
+        import Inertia.Controller
+
+        page "plans", props: [plans: {:list, :string}]
+        shared current_user: :any, locale: :string
+
+        def show(conn, _params) do
+          conn
+          |> assign_prop(:plans, inertia_once(fn -> ["free"] end))
+          |> render_inertia("plans")
+        end
+      end
+      """)
+
+    assert %{"plans" => ["free"]} = props(request(module, :show))
+
+    conn = request(module, :show, %{}, [{"x-inertia-except-once-props", "plans"}])
+    assert conn.status == 200
+    refute Map.has_key?(props(conn), "plans")
+  end
+
+  test "responses that are not Inertia pages pass through" do
+    conn =
+      conn(:get, "/")
+      |> ValidateProps.call(ValidateProps.init([]))
+      |> send_resp(200, "ok")
+
+    assert conn.resp_body == "ok"
+  end
+
+  test "a page rendered outside a controller is looked up nowhere" do
+    conn =
+      conn(:get, "/")
+      |> ValidateProps.call([])
+      |> put_private(:inertia_page, %{component: "tasks/index", props: %{}})
+
+    assert_raise PropsError, ~r/has no declaration/, fn -> send_resp(conn, 200, "") end
+  end
+
   test "the plug does nothing when validation is off" do
     Application.put_env(:typelizer, :validate_inertia_props, false)
     assert request(MyAppWeb.TaskController, :edit).status == 200

@@ -21,6 +21,11 @@ defmodule Typelizer.MixProject do
       source_url: @source_url,
       package: package(),
       docs: docs(),
+      # The fixture app and the test helpers in test/support are not library code.
+      test_coverage: [
+        ignore_modules: [~r/^MyApp(Web)?\./, ~r/^Typelizer\.(Golden|TypeScript)$/],
+        summary: [threshold: 90]
+      ],
       dialyzer: [
         plt_add_apps: [:mix, :ex_unit],
         plt_local_path: "priv/plts",

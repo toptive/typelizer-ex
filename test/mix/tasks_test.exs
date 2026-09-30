@@ -21,6 +21,14 @@ defmodule Mix.Tasks.TypelizerTest do
     :ok
   end
 
+  # The number of files generated for the fixture app.
+  defp total do
+    Typelizer.Golden.config()
+    |> Typelizer.Generator.generate()
+    |> Enum.map(&map_size(&1.files))
+    |> Enum.sum()
+  end
+
   defp gen do
     Mix.Task.rerun("typelizer.gen", [])
     assert_received {:mix_shell, :info, [message]}
@@ -40,13 +48,13 @@ defmodule Mix.Tasks.TypelizerTest do
   end
 
   test "gen writes the files and check passes", %{tmp_dir: tmp_dir} do
-    assert gen() == "typelizer: wrote 23 files, 0 unchanged, removed 0 stale files."
+    assert gen() == "typelizer: wrote #{total()} files, 0 unchanged, removed 0 stale files."
     assert File.read!(Path.join(tmp_dir, "serializers/Task.ts")) =~ "export interface Task {"
     assert File.exists?(Path.join(tmp_dir, "pages/tasks/index.props.ts"))
     assert File.exists?(Path.join(tmp_dir, "routes/runtime.ts"))
 
     assert check() == "typelizer: the generated TypeScript is up to date."
-    assert gen() == "typelizer: wrote 0 files, 23 unchanged, removed 0 stale files."
+    assert gen() == "typelizer: wrote 0 files, #{total()} unchanged, removed 0 stale files."
   end
 
   test "check reports changed, missing and stale files, and gen repairs them", %{tmp_dir: tmp_dir} do
@@ -80,7 +88,7 @@ defmodule Mix.Tasks.TypelizerTest do
     refute report =~ "custom.ts"
     assert report =~ "Run `mix typelizer.gen` and commit the result."
 
-    assert gen() == "typelizer: wrote 2 files, 21 unchanged, removed 1 stale file."
+    assert gen() == "typelizer: wrote 2 files, #{total() - 2} unchanged, removed 1 stale file."
     refute File.exists?(Path.join(tmp_dir, "pages/old"))
 
     assert File.read!(Path.join(tmp_dir, "serializers/custom.ts")) ==

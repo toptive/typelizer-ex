@@ -126,3 +126,17 @@ defmodule MyApp.Projects.Project do
     timestamps type: :utc_datetime
   end
 end
+
+defmodule MyApp.Catalog.Category do
+  @moduledoc false
+  use Ecto.Schema
+
+  schema "categories" do
+    field :name, :string
+    field :opens_at, :time
+    field :rates, {:map, :decimal}
+    belongs_to :parent, MyApp.Catalog.Category
+    has_many :children, MyApp.Catalog.Category, foreign_key: :parent_id
+    many_to_many :projects, MyApp.Projects.Project, join_through: "category_projects"
+  end
+end

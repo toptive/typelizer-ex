@@ -27,6 +27,20 @@ defmodule Typelizer.TypeScriptTest do
     assert status == 0, output
   end
 
+  test "the golden files use the Prettier default style", %{tmp_dir: tmp_dir} do
+    prettier = Path.join(Path.dirname(Typelizer.TypeScript.tsc!()), "prettier")
+
+    if File.exists?(prettier) do
+      {output, status} =
+        System.cmd(prettier, ["--check", "serializers", "routes", "pages"],
+          cd: tmp_dir,
+          stderr_to_stdout: true
+        )
+
+      assert status == 0, output
+    end
+  end
+
   test "the route helpers build the right URLs in Node", %{tmp_dir: tmp_dir, tsc: tsc} do
     args = @strict ++ ~w(--module commonjs --outDir js check.ts)
     {output, status} = System.cmd(tsc, args, cd: tmp_dir, stderr_to_stdout: true)

@@ -174,6 +174,15 @@ defmodule Typelizer.GeneratorTest do
       end
     end
 
+    test "explicit page lists and discovery without an application" do
+      files = files([pages: [MyAppWeb.InertiaShared, MyAppWeb.TaskController]], :pages)
+      assert files["shared.props.ts"] =~ "Source: MyAppWeb.InertiaShared"
+
+      assert_raise GenerationError, ~r/no Mix application/, fn ->
+        [app: nil] |> config() |> Generator.generate()
+      end
+    end
+
     test "no page modules, no pages output" do
       refute [pages: []] |> config() |> Generator.generate() |> Enum.any?(&(&1.kind == :pages))
     end

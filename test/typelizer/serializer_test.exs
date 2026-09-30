@@ -196,6 +196,76 @@ defmodule Typelizer.SerializerTest do
                UserSerializer.serialize_many([@user, %{@user | id: "u2"}])
     end
 
+    test "serializes self references, many_to_many, times and decimal maps" do
+      child = %MyApp.Catalog.Category{
+        id: 2,
+        name: "Child",
+        rates: %{},
+        parent: nil,
+        children: [],
+        projects: []
+      }
+
+      category = %MyApp.Catalog.Category{
+        id: 1,
+        name: "Root",
+        opens_at: ~T[09:30:00],
+        rates: %{"eur" => Decimal.new("1.10")},
+        parent: nil,
+        children: [child],
+        projects: []
+      }
+
+      assert MyAppWeb.CategorySerializer.serialize(category) == %{
+               "id" => 1,
+               "name" => "Root",
+               "opensAt" => "09:30:00",
+               "rates" => %{"eur" => "1.10"},
+               "parent" => nil,
+               "children" => [
+                 %{
+                   "id" => 2,
+                   "name" => "Child",
+                   "opensAt" => nil,
+                   "rates" => %{},
+                   "parent" => nil,
+                   "children" => [],
+                   "projects" => []
+                 }
+               ],
+               "projects" => []
+             }
+    end
+
+    test "raises when a has_many association is not loaded" do
+      assert_raise Typelizer.SerializationError,
+                   ~r/the association :children is not loaded/,
+                   fn ->
+                     MyAppWeb.CategorySerializer.serialize(%MyApp.Catalog.Category{
+                       id: 1,
+                       parent: nil
+                     })
+                   end
+    end
+
+    test "a value: function whose arity is known only at runtime" do
+      [{module, _}] =
+        Code.compile_string("""
+        defmodule Typelizer.SerializerTest.RuntimeArity do
+          use Typelizer.Serializer
+          attribute :one, type: :any, value: Enum.at([fn record -> record.a end], 0)
+          attribute :two, type: :any, value: Enum.at([fn _record, opts -> opts[:b] end], 0)
+          attribute :bad, type: :any, value: Enum.at([:not_a_function], 0), if: & &1[:bad?]
+        end
+        """)
+
+      assert module.serialize(%{a: 1}, b: 2) == %{"one" => 1, "two" => 2}
+
+      assert_raise Typelizer.SerializationError, ~r/value: must be a function of arity 1/, fn ->
+        module.serialize(%{a: 1, bad?: true})
+      end
+    end
+
     test "raises when an association is not loaded" do
       message = ~r/MyAppWeb.TaskSerializer: the association :assignee is not loaded.*preload/i
 

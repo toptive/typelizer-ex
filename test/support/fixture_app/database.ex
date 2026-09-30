@@ -49,6 +49,21 @@ defmodule MyApp.Database do
     )
     """,
     """
+    CREATE TABLE categories (
+      id bigserial PRIMARY KEY,
+      name text NOT NULL,
+      opens_at time(0),
+      rates jsonb NOT NULL,
+      parent_id bigint REFERENCES categories(id)
+    )
+    """,
+    """
+    CREATE TABLE category_projects (
+      category_id bigint NOT NULL REFERENCES categories(id),
+      project_id uuid NOT NULL REFERENCES projects(id)
+    )
+    """,
+    """
     CREATE TABLE comments (
       id bigserial PRIMARY KEY,
       body text NOT NULL,
@@ -64,7 +79,8 @@ defmodule MyApp.Database do
     "users" => ~w(),
     "projects" => ~w(budget settings address),
     "tasks" => ~w(title priority due_on estimate done_at scores assignee_id),
-    "comments" => ~w()
+    "comments" => ~w(),
+    "categories" => ~w(opens_at parent_id)
   }
 
   @columns %{
@@ -73,7 +89,8 @@ defmodule MyApp.Database do
     "tasks" =>
       ~w(id title status priority labels due_on estimate position done_at metadata scores tags
          assignee_id project_id inserted_at updated_at),
-    "comments" => ~w(id body task_id author_id inserted_at updated_at)
+    "comments" => ~w(id body task_id author_id inserted_at updated_at),
+    "categories" => ~w(id name opens_at rates parent_id)
   }
 
   def ddl, do: @ddl

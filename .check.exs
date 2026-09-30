@@ -7,7 +7,7 @@
     {:formatter, "mix format --check-formatted"},
     {:credo, "mix credo --strict"},
     {:dialyzer, "mix dialyzer"},
-    {:ex_unit, "mix test"},
+    {:ex_unit, "mix test --cover"},
     {:ex_doc, "mix docs --warnings-as-errors", env: %{"MIX_ENV" => "dev"}},
     # Not used by this project.
     {:npm_test, false},
